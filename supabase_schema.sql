@@ -70,6 +70,17 @@ CREATE TABLE public.activity_logs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE public.notifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL, -- e.g., 'join_request', 'joined_room', 'member_joined', 'expense_added'
+  message TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 2. Setup trigger to create a user profile on auth.users insert
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -94,6 +105,7 @@ ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expense_splits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- Users can read all users (needed for roommate names), but only update their own
 CREATE POLICY "Users can view all users" ON public.users FOR SELECT USING (true);
@@ -133,6 +145,16 @@ CREATE POLICY "Users can view members of their rooms" ON public.room_members
   );
 CREATE POLICY "Users can insert themselves into a room" ON public.room_members
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Room members can update status" ON public.room_members
+  FOR UPDATE USING (
+    auth.uid() = user_id OR 
+    EXISTS (SELECT 1 FROM public.room_members WHERE room_id = public.room_members.room_id AND user_id = auth.uid() AND role = 'admin')
+  );
+CREATE POLICY "Room members can delete themselves or admins can delete others" ON public.room_members
+  FOR DELETE USING (
+    auth.uid() = user_id OR 
+    EXISTS (SELECT 1 FROM public.room_members WHERE room_id = public.room_members.room_id AND user_id = auth.uid() AND role = 'admin')
+  );
 
 -- Expenses: Viewable and insertable by room members
 CREATE POLICY "Room members can view expenses" ON public.expenses
@@ -168,11 +190,20 @@ CREATE POLICY "Room members can view activity logs" ON public.activity_logs
 CREATE POLICY "Room members can insert activity logs" ON public.activity_logs
   FOR INSERT WITH CHECK (public.is_room_member(room_id));
 
+-- Notifications: Viewable and updatable by the receiver, insertable by any authenticated user
+CREATE POLICY "Users can view their notifications" ON public.notifications
+  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Authenticated users can insert notifications" ON public.notifications
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Users can update their notifications" ON public.notifications
+  FOR UPDATE USING (user_id = auth.uid());
+
 -- Enable Realtime
 alter publication supabase_realtime add table public.expenses;
 alter publication supabase_realtime add table public.expense_splits;
 alter publication supabase_realtime add table public.settlements;
 alter publication supabase_realtime add table public.activity_logs;
+alter publication supabase_realtime add table public.notifications;
 
 -- 4. RPC Functions for Room Management
 -- This function allows securely finding a room by its invite code, bypassing RLS on the rooms table

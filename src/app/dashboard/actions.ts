@@ -4,6 +4,19 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+// Helper for notifications
+async function createNotification(supabase: any, { userIds, actorId, roomId, type, message }: { userIds: string[], actorId?: string, roomId?: string, type: string, message: string }) {
+  if (!userIds || userIds.length === 0) return
+  const notifications = userIds.map(uid => ({
+    user_id: uid,
+    actor_id: actorId,
+    room_id: roomId,
+    type,
+    message
+  }))
+  await supabase.from('notifications').insert(notifications)
+}
+
 export async function createRoom(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -73,6 +86,40 @@ export async function joinRoom(formData: FormData) {
     return
   }
 
+  // Get user profile for notification
+  const { data: userProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
+  const actorName = userProfile?.name || 'Someone'
+
+  if (status === 'pending') {
+    const { data: admins } = await supabase.from('room_members').select('user_id').eq('room_id', room.id).eq('role', 'admin')
+    if (admins) {
+      await createNotification(supabase, {
+        userIds: admins.map(a => a.user_id),
+        actorId: user.id,
+        roomId: room.id,
+        type: 'join_request',
+        message: `${actorName} requested to join ${room.name}`
+      })
+    }
+  } else {
+    const { data: members } = await supabase.from('room_members').select('user_id').eq('room_id', room.id).neq('user_id', user.id).eq('status', 'active')
+    if (members) {
+      await createNotification(supabase, {
+        userIds: members.map(m => m.user_id),
+        actorId: user.id,
+        roomId: room.id,
+        type: 'member_joined',
+        message: `${actorName} joined ${room.name}`
+      })
+    }
+    await createNotification(supabase, {
+      userIds: [user.id],
+      roomId: room.id,
+      type: 'joined_room',
+      message: `You successfully joined ${room.name}`
+    })
+  }
+
   revalidatePath('/dashboard', 'layout')
   redirect(`/dashboard?room=${room.id}`)
 }
@@ -124,6 +171,20 @@ export async function addExpense(formData: FormData) {
       }))
       
       await supabase.from('expense_splits').insert(splits)
+
+      // Notify other members
+      const { data: userProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
+      const actorName = userProfile?.name || 'Someone'
+      const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
+      
+      const otherMembers = members.filter(m => m.user_id !== user.id)
+      await createNotification(supabase, {
+        userIds: otherMembers.map(m => m.user_id),
+        actorId: user.id,
+        roomId,
+        type: 'expense_added',
+        message: `${actorName} added a shared expense: ${description} in ${roomInfo?.name || 'a room'}`
+      })
     }
   }
 
@@ -314,6 +375,30 @@ export async function approveMember(formData: FormData) {
     .eq('room_id', roomId)
     .eq('user_id', targetUserId)
 
+  // Notify the approved user
+  const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
+  await createNotification(supabase, {
+    userIds: [targetUserId],
+    actorId: user.id,
+    roomId,
+    type: 'joined_room',
+    message: `Your request to join ${roomInfo?.name || 'a room'} was approved!`
+  })
+  
+  // Notify existing members
+  const { data: targetProfile } = await supabase.from('users').select('name').eq('id', targetUserId).single()
+  const { data: members } = await supabase.from('room_members').select('user_id').eq('room_id', roomId).neq('user_id', targetUserId).eq('status', 'active')
+  
+  if (members) {
+    await createNotification(supabase, {
+      userIds: members.map(m => m.user_id),
+      actorId: targetUserId,
+      roomId,
+      type: 'member_joined',
+      message: `${targetProfile?.name || 'A new member'} joined ${roomInfo?.name || 'the room'}`
+    })
+  }
+
   revalidatePath('/dashboard', 'layout')
 }
 
@@ -376,6 +461,20 @@ export async function cancelJoinRequest(formData: FormData) {
     .eq('room_id', roomId)
     .eq('user_id', user.id)
     .eq('status', 'pending')
+
+  revalidatePath('/dashboard', 'layout')
+}
+
+export async function markNotificationAsRead(notificationId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId)
+    .eq('user_id', user.id)
 
   revalidatePath('/dashboard', 'layout')
 }

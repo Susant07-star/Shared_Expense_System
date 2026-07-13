@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DashboardNav } from '@/components/shared/dashboard-nav'
+import { TopBar } from '@/components/shared/top-bar'
 import { Suspense } from 'react'
 
 export default async function DashboardLayout({
@@ -49,8 +50,13 @@ export default async function DashboardLayout({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
-        {children}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <Suspense fallback={<div className="h-16 border-b" />}>
+          <TopBar />
+        </Suspense>
+        <div className="flex-1 overflow-y-auto">
+          {children}
+        </div>
       </main>
 
     </div>
