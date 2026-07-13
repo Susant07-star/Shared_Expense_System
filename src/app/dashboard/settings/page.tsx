@@ -4,7 +4,11 @@ import { Settings, Save, LogOut, Plus, LogIn, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { updateRoomName, leaveRoom, createRoom, joinRoom, deleteRoom } from '@/app/dashboard/actions'
+import { updateRoomName, leaveRoom, deleteRoom } from '@/app/dashboard/actions'
+import { SecurityToggle } from '@/components/security-toggle'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose
+} from '@/components/ui/dialog'
 
 export default async function SettingsPage({
   searchParams,
@@ -90,67 +94,18 @@ export default async function SettingsPage({
             <h2 className="text-lg font-bold">Security</h2>
             <p className="text-sm text-muted-foreground mb-4">Control how new members join this room.</p>
 
-            <form action={async (fd) => {
-              'use server'
-              const { updateRoomApprovalSetting } = await import('@/app/dashboard/actions')
-              await updateRoomApprovalSetting(fd)
-            }} className="flex items-center justify-between gap-4 max-w-md">
-              <input type="hidden" name="roomId" value={roomId} />
-              
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
-                <div className="space-y-1 flex-1">
-                  <Label htmlFor="requireApproval" className="text-base">Require Admin Approval</Label>
-                  <p className="text-xs text-muted-foreground">New members will be pending until an admin approves them.</p>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      name="requireApproval" 
-                      id="requireApproval"
-                      className="sr-only peer" 
-                      defaultChecked={room?.require_approval}
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
-                  </label>
-                  
-                  <Button type="submit" variant="secondary" size="sm" className="gap-2 shrink-0">
-                    <Save className="w-4 h-4" /> Save
-                  </Button>
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+              <div className="space-y-1 flex-1">
+                <Label htmlFor="requireApproval" className="text-base">Require Admin Approval</Label>
+                <p className="text-xs text-muted-foreground">New members will be pending until an admin approves them.</p>
               </div>
-            </form>
+
+              <div className="flex items-center gap-4">
+                <SecurityToggle roomId={roomId} initialValue={room?.require_approval || false} />
+              </div>
+            </div>
           </div>
         )}
-
-        {/* Manage Rooms */}
-        <div className="bg-card border rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold">Manage Rooms</h2>
-          <p className="text-sm text-muted-foreground mb-6">Create a new room or join an existing one.</p>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <form action={createRoom} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="newRoomName">Create a New Room</Label>
-                <Input id="newRoomName" name="roomName" placeholder="e.g. My Apartment" required />
-              </div>
-              <Button type="submit" variant="secondary" className="w-full gap-2">
-                <Plus className="w-4 h-4" /> Create Room
-              </Button>
-            </form>
-
-            <form action={joinRoom} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="inviteCode">Join with Invite Code</Label>
-                <Input id="inviteCode" name="inviteCode" placeholder="Enter code" required />
-              </div>
-              <Button type="submit" variant="secondary" className="w-full gap-2">
-                <LogIn className="w-4 h-4" /> Join Room
-              </Button>
-            </form>
-          </div>
-        </div>
 
 
         {/* Danger Zone */}
@@ -158,23 +113,55 @@ export default async function SettingsPage({
           <div>
             <h2 className="text-lg font-bold text-rose-700 dark:text-rose-400">Danger Zone</h2>
             <p className="text-sm text-rose-600/70 dark:text-rose-400/70 mb-4">Leave this room. You will need a new invite code to rejoin.</p>
-            <form action={leaveRoom}>
-              <input type="hidden" name="roomId" value={roomId} />
-              <Button type="submit" variant="destructive" className="gap-2">
-                <LogOut className="w-4 h-4" /> Leave Room
-              </Button>
-            </form>
+            <Dialog>
+              <DialogTrigger render={
+                <Button variant="destructive" className="gap-2">
+                  <LogOut className="w-4 h-4" /> Leave Room
+                </Button>
+              } />
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Leave Room</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to leave this room? You will no longer be able to see expenses or activity until you are invited back.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="mt-4">
+                  <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+                  <form action={leaveRoom}>
+                    <input type="hidden" name="roomId" value={roomId} />
+                    <Button type="submit" variant="destructive">Confirm Leave</Button>
+                  </form>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {isAdmin && (
             <div className="pt-6 border-t border-rose-200/50 dark:border-rose-900/50">
               <p className="text-sm text-rose-600/70 dark:text-rose-400/70 mb-4 font-medium">Delete this room completely. This action cannot be undone.</p>
-              <form action={deleteRoom}>
-                <input type="hidden" name="roomId" value={roomId} />
-                <Button type="submit" variant="destructive" className="gap-2">
-                  <Trash2 className="w-4 h-4" /> Delete Room
-                </Button>
-              </form>
+              <Dialog>
+                <DialogTrigger render={
+                  <Button variant="destructive" className="gap-2">
+                    <Trash2 className="w-4 h-4" /> Delete Room
+                  </Button>
+                } />
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Room</DialogTitle>
+                    <DialogDescription>
+                      Are you absolutely sure you want to delete this room? This will permanently delete all expenses, members, and activity logs. This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter className="mt-4">
+                    <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+                    <form action={deleteRoom}>
+                      <input type="hidden" name="roomId" value={roomId} />
+                      <Button type="submit" variant="destructive">Confirm Delete</Button>
+                    </form>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
         </div>

@@ -12,10 +12,11 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Plus, TrendingUp, TrendingDown, Minus, ArrowRight,
-  Copy, Check, ChevronDown, DollarSign, BadgeCent,
+  Copy, Check, ChevronDown, DollarSign, BadgeCent, UserCircle,
 } from 'lucide-react'
 import { addExpense, settleUp, setNepaliMode } from '@/app/dashboard/actions'
 import { formatDate, formatAmount } from '@/lib/nepali'
+import Link from 'next/link'
 
 type Room = { id: string; name: string; invite_code: string; role: string }
 
@@ -237,6 +238,12 @@ export function DashboardView({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Profile */}
+          <Link href="/dashboard/profile" className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-gray-900 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <UserCircle className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+            <span className="hidden sm:inline">Profile</span>
+          </Link>
+
           {/* Currency / Date dropdown */}
           <CurrencyDropdown
             useNepali={useNepali}

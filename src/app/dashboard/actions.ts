@@ -345,3 +345,19 @@ export async function rejectMember(formData: FormData) {
 
   revalidatePath('/dashboard', 'layout')
 }
+
+export async function updateUserProfile(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const name = formData.get('name') as string
+  if (!name || name.trim() === '') return
+
+  await supabase
+    .from('users')
+    .update({ name: name.trim() })
+    .eq('id', user.id)
+
+  revalidatePath('/dashboard', 'layout')
+}

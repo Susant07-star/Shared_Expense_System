@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
   { href: '/dashboard/expenses', icon: Receipt, label: 'Expenses' },
   { href: '/dashboard/members', icon: Users, label: 'Members' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
+  { href: '/dashboard/settings', icon: Settings, label: 'Room Settings' },
 ]
 
 export function DashboardNav({ allRooms }: { allRooms: Room[] }) {
