@@ -5,7 +5,10 @@
  * No hardcoded calendar data — the library maintains BS year tables
  * internally and covers BS 1975–2100.
  */
-import { adToBs } from '@sbmdkl/nepali-date-converter'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { adToBs } = require('@sbmdkl/nepali-date-converter') as {
+  adToBs: (date: string) => string
+}
 
 const NP_MONTHS = [
   'Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin',
