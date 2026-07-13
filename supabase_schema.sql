@@ -13,15 +13,18 @@ CREATE TABLE public.rooms (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   invite_code TEXT UNIQUE NOT NULL DEFAULT md5(random()::text || clock_timestamp()::text)::varchar(8),
+  require_approval BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 CREATE TYPE public.room_role AS ENUM ('admin', 'member');
+CREATE TYPE public.member_status AS ENUM ('pending', 'active');
 
 CREATE TABLE public.room_members (
   room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   role public.room_role DEFAULT 'member',
+  status public.member_status DEFAULT 'active',
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   PRIMARY KEY (room_id, user_id)
 );
@@ -100,13 +103,20 @@ CREATE POLICY "Users can update own profile" ON public.users FOR UPDATE USING (a
 CREATE OR REPLACE FUNCTION public.is_room_member(check_room_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
+  RETURN EXISTS (SELECT 1 FROM public.room_members WHERE room_id = check_room_id AND user_id = auth.uid() AND status = 'active');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.is_any_room_member(check_room_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
   RETURN EXISTS (SELECT 1 FROM public.room_members WHERE room_id = check_room_id AND user_id = auth.uid());
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Rooms: Users can read and update rooms they are members of
 CREATE POLICY "Users can view rooms they belong to" ON public.rooms 
-  FOR SELECT USING (public.is_room_member(id));
+  FOR SELECT USING (public.is_any_room_member(id));
 CREATE POLICY "Users can update rooms they belong to" ON public.rooms 
   FOR UPDATE USING (public.is_room_member(id));
 CREATE POLICY "Admins can delete their rooms" ON public.rooms
@@ -167,8 +177,8 @@ alter publication supabase_realtime add table public.activity_logs;
 -- 4. RPC Functions for Room Management
 -- This function allows securely finding a room by its invite code, bypassing RLS on the rooms table
 CREATE OR REPLACE FUNCTION public.get_room_by_invite_code(code TEXT)
-RETURNS TABLE (id UUID) AS $$
+RETURNS TABLE (id UUID, require_approval BOOLEAN) AS $$
 BEGIN
-  RETURN QUERY SELECT r.id FROM public.rooms r WHERE r.invite_code = code LIMIT 1;
+  RETURN QUERY SELECT r.id, r.require_approval FROM public.rooms r WHERE r.invite_code = code LIMIT 1;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

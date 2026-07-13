@@ -15,15 +15,17 @@ export default async function DashboardLayout({
   // Fetch all rooms for the sidebar nav
   const { data: memberships } = await supabase
     .from('room_members')
-    .select('role, rooms(id, name, invite_code)')
+    .select('role, status, rooms(id, name, invite_code)')
     .eq('user_id', user.id)
 
-  const allRooms = (memberships || []).map((m: any) => ({
+  const activeMemberships = (memberships || []).filter((m: any) => m.status === 'active' || !m.status)
+
+  const allRooms = activeMemberships.map((m: any) => ({
     id: m.rooms?.id,
     name: m.rooms?.name,
     invite_code: m.rooms?.invite_code,
     role: m.role,
-  })).filter(r => r.id)
+  })).filter((r: any) => r.id)
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">

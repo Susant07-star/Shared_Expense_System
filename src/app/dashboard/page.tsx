@@ -39,23 +39,68 @@ export default async function DashboardPage({
   // Get ALL rooms the user belongs to
   const { data: memberships, error: membershipsError } = await supabase
     .from('room_members')
-    .select('room_id, role, rooms(id, name, invite_code)')
+    .select('room_id, role, status, rooms(id, name, invite_code)')
     .eq('user_id', user.id)
 
   if (membershipsError) {
     throw new Error(`Memberships fetch error: ${membershipsError.message}`)
   }
 
-  const allRooms = (memberships || []).map((m: any) => ({
-    id: m.rooms?.id,
-    name: m.rooms?.name,
-    invite_code: m.rooms?.invite_code,
-    role: m.role,
-  })).filter(r => r.id)
+  const rawMemberships = memberships || []
+  
+  const activeRooms = rawMemberships
+    .filter((m: any) => m.status === 'active' || !m.status)
+    .map((m: any) => ({
+      id: m.rooms?.id,
+      name: m.rooms?.name,
+      invite_code: m.rooms?.invite_code,
+      role: m.role,
+    })).filter(r => r.id)
 
-  const hasRooms = allRooms.length > 0
+  const pendingRooms = rawMemberships
+    .filter((m: any) => m.status === 'pending')
+    .map((m: any) => ({
+      id: m.rooms?.id,
+      name: m.rooms?.name,
+    })).filter(r => r.id)
 
-  if (!hasRooms) {
+  const hasActiveRooms = activeRooms.length > 0
+
+  if (!hasActiveRooms) {
+    if (pendingRooms.length > 0) {
+      return (
+        <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+          <div className="max-w-md w-full space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-amber-600 dark:text-amber-500 flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                  </span>
+                  Pending Approval
+                </CardTitle>
+                <CardDescription>You have requested to join one or more rooms. Please wait for an admin to approve your request.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {pendingRooms.map(r => (
+                    <div key={r.id} className="p-3 bg-muted rounded-lg font-medium">
+                      {r.name}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <form action={signout}>
+              <Button variant="ghost" className="w-full" type="submit">Sign out</Button>
+            </form>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-md w-full space-y-4">
@@ -101,11 +146,11 @@ export default async function DashboardPage({
   }
 
   // Determine which room to show (from query param or default to first)
-  const selectedRoomId = resolvedParams.room && allRooms.some(r => r.id === resolvedParams.room)
+  const selectedRoomId = resolvedParams.room && activeRooms.some(r => r.id === resolvedParams.room)
     ? resolvedParams.room
-    : allRooms[0].id
+    : activeRooms[0].id
 
-  const roomDetails = allRooms.find(r => r.id === selectedRoomId)!
+  const roomDetails = activeRooms.find(r => r.id === selectedRoomId)!
 
   // Parallel fetches for speed
   const [membersRes, recentExpensesRes, balances, cookieStore] = await Promise.all([
@@ -145,7 +190,7 @@ export default async function DashboardPage({
       roomId={selectedRoomId}
       roomName={roomDetails.name}
       inviteCode={roomDetails.invite_code}
-      allRooms={allRooms}
+      allRooms={activeRooms}
       recentExpenses={recentExpenses || []}
       balances={balances || []}
       currentUserId={user.id}

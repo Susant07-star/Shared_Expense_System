@@ -53,7 +53,7 @@ export default async function MembersPage({
     supabase.from('rooms').select('name, invite_code').eq('id', roomId).single(),
     supabase
       .from('room_members')
-      .select('role, joined_at, user_id, users(name, avatar_url)')
+      .select('role, status, joined_at, user_id, users(name, avatar_url)')
       .eq('room_id', roomId)
       .order('joined_at', { ascending: true }),
     cookies(),
@@ -61,8 +61,12 @@ export default async function MembersPage({
 
   const room = roomRes.data
   const memberList = membersRes.data || []
-  const admins = memberList.filter((m: any) => m.role === 'admin')
-  const regularMembers = memberList.filter((m: any) => m.role === 'member')
+  
+  const pendingMembers = memberList.filter((m: any) => m.status === 'pending')
+  const activeMembers = memberList.filter((m: any) => m.status === 'active' || !m.status)
+  
+  const admins = activeMembers.filter((m: any) => m.role === 'admin')
+  const regularMembers = activeMembers.filter((m: any) => m.role === 'member')
   const useNepali = cookieStore.get('useNepali')?.value !== 'false'
 
   return (
@@ -84,6 +88,57 @@ export default async function MembersPage({
           {room?.invite_code}
         </span>
       </div>
+
+      {/* Pending Requests */}
+      {isAdmin && pendingMembers.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-500 px-1 flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            Pending Approval ({pendingMembers.length})
+          </h2>
+          <div className="space-y-2">
+            {pendingMembers.map((m: any) => {
+              const name = m.users?.name || 'Unknown'
+              return (
+                <div key={m.user_id} className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20">
+                  <Avatar name={name} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{name}</p>
+                    <p className="text-sm text-muted-foreground">Wants to join</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <form action={async (fd) => {
+                      'use server'
+                      const { rejectMember } = await import('@/app/dashboard/actions')
+                      await rejectMember(fd)
+                    }}>
+                      <input type="hidden" name="roomId" value={roomId} />
+                      <input type="hidden" name="targetUserId" value={m.user_id} />
+                      <button type="submit" className="px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-100 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:hover:bg-rose-900/50 rounded-md transition-colors">
+                        Reject
+                      </button>
+                    </form>
+                    <form action={async (fd) => {
+                      'use server'
+                      const { approveMember } = await import('@/app/dashboard/actions')
+                      await approveMember(fd)
+                    }}>
+                      <input type="hidden" name="roomId" value={roomId} />
+                      <input type="hidden" name="targetUserId" value={m.user_id} />
+                      <button type="submit" className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors shadow-sm">
+                        Approve
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Admins */}
       {admins.length > 0 && (

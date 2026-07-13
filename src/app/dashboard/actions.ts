@@ -61,11 +61,12 @@ export async function joinRoom(formData: FormData) {
   }
 
   const room = roomIds[0]
+  const status = room.require_approval ? 'pending' : 'active'
 
   // Insert member
   const { error: memberError } = await supabase
     .from('room_members')
-    .insert([{ room_id: room.id, user_id: user.id, role: 'member' }])
+    .insert([{ room_id: room.id, user_id: user.id, role: 'member', status }])
 
   if (memberError) {
     console.error(memberError.message)
@@ -257,4 +258,90 @@ export async function deleteRoom(formData: FormData) {
 
   revalidatePath('/dashboard', 'layout')
   redirect('/dashboard')
+}
+
+export async function updateRoomApprovalSetting(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const roomId = formData.get('roomId') as string
+  const requireApproval = formData.get('requireApproval') === 'on'
+
+  if (!roomId) return
+
+  // Verify admin
+  const { data: membership } = await supabase
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') return
+
+  await supabase
+    .from('rooms')
+    .update({ require_approval: requireApproval })
+    .eq('id', roomId)
+
+  revalidatePath('/dashboard', 'layout')
+}
+
+export async function approveMember(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const roomId = formData.get('roomId') as string
+  const targetUserId = formData.get('targetUserId') as string
+
+  if (!roomId || !targetUserId) return
+
+  // Verify admin
+  const { data: membership } = await supabase
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') return
+
+  await supabase
+    .from('room_members')
+    .update({ status: 'active' })
+    .eq('room_id', roomId)
+    .eq('user_id', targetUserId)
+
+  revalidatePath('/dashboard', 'layout')
+}
+
+export async function rejectMember(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const roomId = formData.get('roomId') as string
+  const targetUserId = formData.get('targetUserId') as string
+
+  if (!roomId || !targetUserId) return
+
+  // Verify admin
+  const { data: membership } = await supabase
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') return
+
+  await supabase
+    .from('room_members')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('user_id', targetUserId)
+
+  revalidatePath('/dashboard', 'layout')
 }
