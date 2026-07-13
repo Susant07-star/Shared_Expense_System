@@ -97,23 +97,29 @@ export default async function SettingsPage({
             }} className="flex items-center justify-between gap-4 max-w-md">
               <input type="hidden" name="roomId" value={roomId} />
               
-              <div className="space-y-1">
-                <Label htmlFor="requireApproval" className="text-base">Require Admin Approval</Label>
-                <p className="text-xs text-muted-foreground">New members will be pending until an admin approves them.</p>
-              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+                <div className="space-y-1 flex-1">
+                  <Label htmlFor="requireApproval" className="text-base">Require Admin Approval</Label>
+                  <p className="text-xs text-muted-foreground">New members will be pending until an admin approves them.</p>
+                </div>
 
-              {/* Using a native checkbox styled as a toggle/switch for simplicity without adding new deps */}
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  name="requireApproval" 
-                  id="requireApproval"
-                  className="sr-only peer" 
-                  defaultChecked={room?.require_approval}
-                  onChange={(e) => e.target.form?.requestSubmit()} 
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
-              </label>
+                <div className="flex items-center gap-4">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      name="requireApproval" 
+                      id="requireApproval"
+                      className="sr-only peer" 
+                      defaultChecked={room?.require_approval}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                  </label>
+                  
+                  <Button type="submit" variant="secondary" size="sm" className="gap-2 shrink-0">
+                    <Save className="w-4 h-4" /> Save
+                  </Button>
+                </div>
+              </div>
             </form>
           </div>
         )}
