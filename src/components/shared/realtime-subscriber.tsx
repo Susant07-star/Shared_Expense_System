@@ -1,44 +1,50 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 
 export function RealtimeSubscriber() {
   const router = useRouter()
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const [, startTransition] = useTransition()
+
+  const refresh = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      startTransition(() => router.refresh())
+    }, 300)
+  }
 
   useEffect(() => {
-    // We create a fresh browser client here to subscribe
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    const supabase = createBrowserClient(supabaseUrl, supabaseKey)
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
 
-    const channel = supabase.channel('global-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public' },
-        (payload) => {
-          // Debounce the router.refresh() call to prevent spamming
-          // multiple refreshes if several tables update simultaneously.
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current)
-          }
-          timeoutRef.current = setTimeout(() => {
-            router.refresh()
-          }, 300)
+    // ── Supabase Realtime (instant when it works) ──────────────────────────
+    const channel = supabase
+      .channel('global-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, refresh)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] Connected ✓')
         }
-      )
-      .subscribe()
+      })
+
+    // ── Polling fallback (guaranteed every 8 seconds) ──────────────────────
+    // This ensures data is always fresh even if realtime is not broadcasting.
+    const pollInterval = setInterval(() => {
+      startTransition(() => router.refresh())
+    }, 8000)
 
     return () => {
       supabase.removeChannel(channel)
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
+      clearInterval(pollInterval)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  // This component doesn't render anything
   return null
 }

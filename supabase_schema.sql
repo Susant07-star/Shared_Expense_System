@@ -207,10 +207,32 @@ alter publication supabase_realtime add table public.rooms;
 alter publication supabase_realtime add table public.activity_logs;
 
 -- 4. RPC Functions for Room Management
--- This function allows securely finding a room by its invite code, bypassing RLS on the rooms table
+-- Finds a room by invite code, bypassing RLS. Returns id, name, require_approval.
+DROP FUNCTION IF EXISTS public.get_room_by_invite_code(TEXT);
 CREATE OR REPLACE FUNCTION public.get_room_by_invite_code(code TEXT)
-RETURNS TABLE (id UUID, require_approval BOOLEAN) AS $$
+RETURNS TABLE (id UUID, name TEXT, require_approval BOOLEAN) AS $$
 BEGIN
-  RETURN QUERY SELECT r.id, r.require_approval FROM public.rooms r WHERE r.invite_code = code LIMIT 1;
+  RETURN QUERY SELECT r.id, r.name, r.require_approval FROM public.rooms r WHERE r.invite_code = code LIMIT 1;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Gets all admin user_ids for a room, bypassing RLS (used by joinRoom to notify admins)
+DROP FUNCTION IF EXISTS public.get_room_admins(UUID);
+CREATE OR REPLACE FUNCTION public.get_room_admins(p_room_id UUID)
+RETURNS TABLE (user_id UUID) AS $$
+BEGIN
+  RETURN QUERY SELECT rm.user_id FROM public.room_members rm WHERE rm.room_id = p_room_id AND rm.role = 'admin';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Gets all active member user_ids for a room (excluding a given user), bypassing RLS
+DROP FUNCTION IF EXISTS public.get_room_active_members(UUID, UUID);
+CREATE OR REPLACE FUNCTION public.get_room_active_members(p_room_id UUID, p_exclude_user_id UUID)
+RETURNS TABLE (user_id UUID) AS $$
+BEGIN
+  RETURN QUERY SELECT rm.user_id FROM public.room_members rm 
+    WHERE rm.room_id = p_room_id 
+    AND rm.user_id != p_exclude_user_id 
+    AND rm.status = 'active';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

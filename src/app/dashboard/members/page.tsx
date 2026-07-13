@@ -1,8 +1,12 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Crown, User } from 'lucide-react'
+import { Crown, User, ShieldCheck } from 'lucide-react'
 import { cookies } from 'next/headers'
 import { formatDate } from '@/lib/nepali'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
   const colors = [
@@ -193,9 +197,46 @@ export default async function MembersPage({
                     </div>
                     <p className="text-sm text-muted-foreground">Joined {formatDate(m.joined_at, useNepali)}</p>
                   </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
-                    <User className="w-4 h-4" />
-                    <span className="text-xs font-medium">Member</span>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Make Admin button — only shown to admins, not for themselves */}
+                    {isAdmin && !isYou && (
+                      <Dialog>
+                        <DialogTrigger render={
+                          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800/50 rounded-lg transition-colors">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            Make Admin
+                          </button>
+                        } />
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Promote to Admin?</DialogTitle>
+                            <DialogDescription>
+                              Are you sure you want to make <span className="font-semibold text-foreground">{name}</span> an admin of this room? They will be able to approve members, manage settings, and promote others.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+                            <form action={async (fd) => {
+                              'use server'
+                              const { promoteToAdmin } = await import('@/app/dashboard/actions')
+                              await promoteToAdmin(fd)
+                            }}>
+                              <input type="hidden" name="roomId" value={roomId} />
+                              <input type="hidden" name="targetUserId" value={m.user_id} />
+                              <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white">
+                                Yes, Make Admin
+                              </Button>
+                            </form>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <User className="w-4 h-4" />
+                      <span className="text-xs font-medium">Member</span>
+                    </div>
                   </div>
                 </div>
               )

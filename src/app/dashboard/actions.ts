@@ -91,10 +91,11 @@ export async function joinRoom(formData: FormData) {
   const actorName = userProfile?.name || 'Someone'
 
   if (status === 'pending') {
-    const { data: admins } = await supabase.from('room_members').select('user_id').eq('room_id', room.id).eq('role', 'admin')
-    if (admins) {
+    // Use SECURITY DEFINER RPC to bypass RLS — pending members can't query room_members directly
+    const { data: admins } = await supabase.rpc('get_room_admins', { p_room_id: room.id })
+    if (admins && admins.length > 0) {
       await createNotification(supabase, {
-        userIds: admins.map(a => a.user_id),
+        userIds: admins.map((a: any) => a.user_id),
         actorId: user.id,
         roomId: room.id,
         type: 'join_request',
@@ -102,10 +103,11 @@ export async function joinRoom(formData: FormData) {
       })
     }
   } else {
-    const { data: members } = await supabase.from('room_members').select('user_id').eq('room_id', room.id).neq('user_id', user.id).eq('status', 'active')
-    if (members) {
+    // Use SECURITY DEFINER RPC to bypass RLS for member notifications
+    const { data: members } = await supabase.rpc('get_room_active_members', { p_room_id: room.id, p_exclude_user_id: user.id })
+    if (members && members.length > 0) {
       await createNotification(supabase, {
-        userIds: members.map(m => m.user_id),
+        userIds: members.map((m: any) => m.user_id),
         actorId: user.id,
         roomId: room.id,
         type: 'member_joined',
@@ -230,6 +232,20 @@ export async function settleUp(formData: FormData) {
     return
   }
 
+  // Notify the payee that they received payment
+  const { data: payerProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
+  const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
+  const payerName = payerProfile?.name || 'Someone'
+  const formattedAmount = `Rs. ${Math.round(amount * 135).toLocaleString()}`
+
+  await createNotification(supabase, {
+    userIds: [payeeId],
+    actorId: user.id,
+    roomId,
+    type: 'payment_received',
+    message: `${payerName} paid you ${formattedAmount} in ${roomInfo?.name || 'a room'}`
+  })
+
   await supabase.from('activity_logs').insert([{
     room_id: roomId,
     user_id: user.id,
@@ -263,6 +279,22 @@ export async function settleAllBalances(formData: FormData) {
     }))
 
     await supabase.from('settlements').insert(settlements)
+
+    // Notify each payee individually
+    const { data: payerProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
+    const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
+    const payerName = payerProfile?.name || 'Someone'
+
+    for (const debt of validDebts) {
+      const formattedAmount = `Rs. ${Math.round(debt.amount * 135).toLocaleString()}`
+      await createNotification(supabase, {
+        userIds: [debt.to],
+        actorId: user.id,
+        roomId,
+        type: 'payment_received',
+        message: `${payerName} paid you ${formattedAmount} in ${roomInfo?.name || 'a room'}`
+      })
+    }
 
     await supabase.from('activity_logs').insert([{
       room_id: roomId,
@@ -464,6 +496,48 @@ export async function rejectMember(formData: FormData) {
     .delete()
     .eq('room_id', roomId)
     .eq('user_id', targetUserId)
+
+  revalidatePath('/dashboard', 'layout')
+}
+
+export async function promoteToAdmin(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const roomId = formData.get('roomId') as string
+  const targetUserId = formData.get('targetUserId') as string
+
+  if (!roomId || !targetUserId) return
+
+  // Verify caller is admin
+  const { data: membership } = await supabase
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') return
+
+  // Promote the member to admin
+  await supabase
+    .from('room_members')
+    .update({ role: 'admin' })
+    .eq('room_id', roomId)
+    .eq('user_id', targetUserId)
+
+  // Notify the newly promoted user
+  const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
+  const { data: callerProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
+
+  await createNotification(supabase, {
+    userIds: [targetUserId],
+    actorId: user.id,
+    roomId,
+    type: 'promoted_to_admin',
+    message: `${callerProfile?.name || 'An admin'} made you an admin in ${roomInfo?.name || 'a room'} 🎉`
+  })
 
   revalidatePath('/dashboard', 'layout')
 }
