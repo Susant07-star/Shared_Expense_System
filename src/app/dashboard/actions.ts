@@ -230,3 +230,31 @@ export async function setNepaliMode(enabled: boolean) {
   cookieStore.set('useNepali', enabled ? 'true' : 'false', { path: '/' })
   revalidatePath('/', 'layout')
 }
+
+export async function deleteRoom(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const roomId = formData.get('roomId') as string
+  if (!roomId) return
+
+  // Verify admin
+  const { data: membership } = await supabase
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') return
+
+  // Note: For this to work, public.rooms needs a FOR DELETE RLS policy for admins.
+  await supabase
+    .from('rooms')
+    .delete()
+    .eq('id', roomId)
+
+  revalidatePath('/dashboard', 'layout')
+  redirect('/dashboard')
+}

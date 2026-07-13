@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Settings, Save, LogOut } from 'lucide-react'
+import { Settings, Save, LogOut, Plus, LogIn, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { updateRoomName, leaveRoom } from '@/app/dashboard/actions'
+import { updateRoomName, leaveRoom, createRoom, joinRoom, deleteRoom } from '@/app/dashboard/actions'
 
 export default async function SettingsPage({
   searchParams,
@@ -48,8 +48,8 @@ export default async function SettingsPage({
           <Settings className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Room Settings</h1>
-          <p className="text-muted-foreground mt-1">Update room details and preferences.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h1>
+          <p className="text-muted-foreground mt-1">Manage current room and your joined rooms.</p>
         </div>
       </div>
 
@@ -58,7 +58,7 @@ export default async function SettingsPage({
         {/* Rename Room */}
         <div className="bg-card border rounded-2xl p-6 shadow-sm">
           <h2 className="text-lg font-bold">Room Profile</h2>
-          <p className="text-sm text-muted-foreground mb-4">Change the name of your room.</p>
+          <p className="text-sm text-muted-foreground mb-4">Change the name of your current room.</p>
 
           <form action={updateRoomName} className="space-y-4 max-w-md">
             <input type="hidden" name="roomId" value={roomId} />
@@ -84,17 +84,59 @@ export default async function SettingsPage({
           </form>
         </div>
 
-        {/* Danger Zone */}
-        <div className="border border-rose-200 dark:border-rose-900/50 bg-rose-50/30 dark:bg-rose-950/20 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-rose-700 dark:text-rose-400">Danger Zone</h2>
-          <p className="text-sm text-rose-600/70 dark:text-rose-400/70 mb-4">Leave this room. You will need a new invite code to rejoin.</p>
+        {/* Manage Rooms */}
+        <div className="bg-card border rounded-2xl p-6 shadow-sm">
+          <h2 className="text-lg font-bold">Manage Rooms</h2>
+          <p className="text-sm text-muted-foreground mb-6">Create a new room or join an existing one.</p>
 
-          <form action={leaveRoom}>
-            <input type="hidden" name="roomId" value={roomId} />
-            <Button type="submit" variant="destructive" className="gap-2">
-              <LogOut className="w-4 h-4" /> Leave Room
-            </Button>
-          </form>
+          <div className="grid md:grid-cols-2 gap-6">
+            <form action={createRoom} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newRoomName">Create a New Room</Label>
+                <Input id="newRoomName" name="roomName" placeholder="e.g. My Apartment" required />
+              </div>
+              <Button type="submit" variant="secondary" className="w-full gap-2">
+                <Plus className="w-4 h-4" /> Create Room
+              </Button>
+            </form>
+
+            <form action={joinRoom} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="inviteCode">Join with Invite Code</Label>
+                <Input id="inviteCode" name="inviteCode" placeholder="Enter code" required />
+              </div>
+              <Button type="submit" variant="secondary" className="w-full gap-2">
+                <LogIn className="w-4 h-4" /> Join Room
+              </Button>
+            </form>
+          </div>
+        </div>
+
+
+        {/* Danger Zone */}
+        <div className="border border-rose-200 dark:border-rose-900/50 bg-rose-50/30 dark:bg-rose-950/20 rounded-2xl p-6 shadow-sm space-y-6">
+          <div>
+            <h2 className="text-lg font-bold text-rose-700 dark:text-rose-400">Danger Zone</h2>
+            <p className="text-sm text-rose-600/70 dark:text-rose-400/70 mb-4">Leave this room. You will need a new invite code to rejoin.</p>
+            <form action={leaveRoom}>
+              <input type="hidden" name="roomId" value={roomId} />
+              <Button type="submit" variant="destructive" className="gap-2">
+                <LogOut className="w-4 h-4" /> Leave Room
+              </Button>
+            </form>
+          </div>
+
+          {isAdmin && (
+            <div className="pt-6 border-t border-rose-200/50 dark:border-rose-900/50">
+              <p className="text-sm text-rose-600/70 dark:text-rose-400/70 mb-4 font-medium">Delete this room completely. This action cannot be undone.</p>
+              <form action={deleteRoom}>
+                <input type="hidden" name="roomId" value={roomId} />
+                <Button type="submit" variant="destructive" className="gap-2">
+                  <Trash2 className="w-4 h-4" /> Delete Room
+                </Button>
+              </form>
+            </div>
+          )}
         </div>
 
       </div>

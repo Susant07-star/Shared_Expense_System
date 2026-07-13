@@ -109,6 +109,10 @@ CREATE POLICY "Users can view rooms they belong to" ON public.rooms
   FOR SELECT USING (public.is_room_member(id));
 CREATE POLICY "Users can update rooms they belong to" ON public.rooms 
   FOR UPDATE USING (public.is_room_member(id));
+CREATE POLICY "Admins can delete their rooms" ON public.rooms
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.room_members WHERE room_id = id AND user_id = auth.uid() AND role = 'admin')
+  );
 CREATE POLICY "Authenticated users can create rooms" ON public.rooms
   FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 

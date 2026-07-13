@@ -1,22 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { LogOut } from 'lucide-react'
-import { signout } from '../(auth)/actions'
-import { Button } from '@/components/ui/button'
 import { DashboardNav } from '@/components/shared/dashboard-nav'
+import { Suspense } from 'react'
 
 export default async function DashboardLayout({
   children,
-  params,
 }: {
   children: React.ReactNode
-  params?: any
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch all rooms for the sidebar
+  // Fetch all rooms for the sidebar nav
   const { data: memberships } = await supabase
     .from('room_members')
     .select('role, rooms(id, name, invite_code)')
@@ -29,36 +25,32 @@ export default async function DashboardLayout({
     role: m.role,
   })).filter(r => r.id)
 
-  // We read the selected room from the URL server-side via the children,
-  // but pass the full list. Room selection happens on the page level.
-  const selectedRoomId = allRooms[0]?.id ?? ''
-
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
-      <aside className="w-64 border-r bg-white dark:bg-gray-950 flex flex-col hidden md:flex shrink-0">
-        <div className="p-6 border-b">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+
+      {/* Sidebar — hidden on mobile, visible md+ */}
+      <aside className="hidden md:flex w-64 border-r bg-white dark:bg-gray-950 flex-col shrink-0">
+
+        {/* App branding */}
+        <div className="p-6 border-b shrink-0">
           <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
             Roommates
           </h2>
           <p className="text-xs text-muted-foreground mt-1">Shared Expense Tracker</p>
         </div>
 
-        <DashboardNav allRooms={allRooms} selectedRoomId={selectedRoomId} />
+        {/* Nav (includes room switcher, links, and sign out) */}
+        <Suspense fallback={<div className="flex-1" />}>
+          <DashboardNav allRooms={allRooms} />
+        </Suspense>
 
-        <div className="p-4 border-t">
-          <form action={signout}>
-            <Button variant="ghost" className="w-full justify-start gap-3 text-sm text-gray-600 dark:text-gray-400" type="submit">
-              <LogOut className="w-5 h-5 shrink-0" /> Sign Out
-            </Button>
-          </form>
-        </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
+
     </div>
   )
 }
