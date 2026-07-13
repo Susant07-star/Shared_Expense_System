@@ -240,6 +240,43 @@ export async function settleUp(formData: FormData) {
   revalidatePath('/dashboard', 'layout')
 }
 
+export async function settleAllBalances(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const roomId = formData.get('roomId') as string
+  const debtsStr = formData.get('debts') as string
+  if (!roomId || !debtsStr) return
+
+  try {
+    const debts = JSON.parse(debtsStr) as { from: string, to: string, amount: number }[]
+    const validDebts = debts.filter(d => d.from === user.id && d.amount > 0)
+    
+    if (validDebts.length === 0) return
+
+    const settlements = validDebts.map(d => ({
+      room_id: roomId,
+      payer_id: user.id,
+      payee_id: d.to,
+      amount: d.amount
+    }))
+
+    await supabase.from('settlements').insert(settlements)
+
+    await supabase.from('activity_logs').insert([{
+      room_id: roomId,
+      user_id: user.id,
+      action_type: 'settled_all',
+      metadata: { count: validDebts.length, total: validDebts.reduce((acc, d) => acc + d.amount, 0) }
+    }])
+  } catch (e) {
+    console.error('Failed to parse debts', e)
+  }
+
+  revalidatePath('/dashboard', 'layout')
+}
+
 export async function updateRoomName(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -199,11 +199,12 @@ CREATE POLICY "Users can update their notifications" ON public.notifications
   FOR UPDATE USING (user_id = auth.uid());
 
 -- Enable Realtime
-alter publication supabase_realtime add table public.expenses;
-alter publication supabase_realtime add table public.expense_splits;
-alter publication supabase_realtime add table public.settlements;
-alter publication supabase_realtime add table public.activity_logs;
 alter publication supabase_realtime add table public.notifications;
+alter publication supabase_realtime add table public.expenses;
+alter publication supabase_realtime add table public.settlements;
+alter publication supabase_realtime add table public.room_members;
+alter publication supabase_realtime add table public.rooms;
+alter publication supabase_realtime add table public.activity_logs;
 
 -- 4. RPC Functions for Room Management
 -- This function allows securely finding a room by its invite code, bypassing RLS on the rooms table

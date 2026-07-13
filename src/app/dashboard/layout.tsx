@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DashboardNav } from '@/components/shared/dashboard-nav'
 import { TopBar } from '@/components/shared/top-bar'
+import { RealtimeSubscriber } from '@/components/shared/realtime-subscriber'
 import { Suspense } from 'react'
 
 export default async function DashboardLayout({
@@ -51,6 +52,7 @@ export default async function DashboardLayout({
 
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
+        <RealtimeSubscriber />
         <Suspense fallback={<div className="h-16 border-b" />}>
           <TopBar />
         </Suspense>

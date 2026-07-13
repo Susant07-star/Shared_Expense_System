@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +14,7 @@ import {
   Plus, TrendingUp, TrendingDown, Minus, ArrowRight,
   Copy, Check, ChevronDown, DollarSign, BadgeCent, UserCircle,
 } from 'lucide-react'
-import { addExpense, settleUp, setNepaliMode } from '@/app/dashboard/actions'
+import { addExpense, settleUp, settleAllBalances, setNepaliMode } from '@/app/dashboard/actions'
 import { formatDate, formatAmount } from '@/lib/nepali'
 import Link from 'next/link'
 
@@ -253,6 +253,33 @@ export function DashboardView({
 
         {/* Balances tab */}
         <TabsContent value="balances" className="mt-4 space-y-3">
+          {balances.some(b => b.from === currentUserId) && (
+            <div className="flex justify-end mb-2">
+              <Dialog>
+                <DialogTrigger render={
+                  <Button variant="outline" className="text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30">
+                    Settle All Balances
+                  </Button>
+                } />
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Settle All Balances</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to mark all your outstanding debts in this room as paid?
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+                    <form action={settleAllBalances}>
+                      <input type="hidden" name="roomId" value={roomId} />
+                      <input type="hidden" name="debts" value={JSON.stringify(balances.filter(b => b.from === currentUserId))} />
+                      <Button type="submit">Confirm Payment</Button>
+                    </form>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
           {balances.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <div className="text-4xl mb-3">🎉</div>
@@ -303,19 +330,34 @@ export function DashboardView({
                       {formatAmount(b.amount, useNepali)}
                     </span>
                     {isUserOwing && (
-                      <form action={settleUp}>
-                        <input type="hidden" name="roomId" value={roomId} />
-                        <input type="hidden" name="payeeId" value={b.to} />
-                        <input type="hidden" name="amount" value={b.amount} />
-                        <Button
-                          type="submit"
-                          size="sm"
-                          variant="outline"
-                          className="text-xs h-7 px-2.5 border-rose-200 hover:bg-rose-100 dark:border-rose-800 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 transition-all"
-                        >
-                          Mark Paid
-                        </Button>
-                      </form>
+                      <Dialog>
+                        <DialogTrigger render={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7 px-2.5 border-rose-200 hover:bg-rose-100 dark:border-rose-800 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 transition-all"
+                          >
+                            Mark Paid
+                          </Button>
+                        } />
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Confirm Payment</DialogTitle>
+                            <DialogDescription>
+                              Are you sure you want to mark this balance as paid to {toName}?
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+                            <form action={settleUp}>
+                              <input type="hidden" name="roomId" value={roomId} />
+                              <input type="hidden" name="payeeId" value={b.to} />
+                              <input type="hidden" name="amount" value={b.amount} />
+                              <Button type="submit">Confirm</Button>
+                            </form>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     )}
                   </div>
                 </div>
