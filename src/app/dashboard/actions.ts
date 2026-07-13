@@ -353,6 +353,9 @@ export async function leaveRoom(formData: FormData) {
     .eq('user_id', user.id)
 
   revalidatePath('/dashboard', 'layout')
+  // redirect back to whichever page called this (profile or settings)
+  const redirectTo = formData.get('redirectTo') as string | null
+  redirect(redirectTo || '/dashboard')
 }
 
 export async function setNepaliMode(enabled: boolean) {
@@ -387,7 +390,8 @@ export async function deleteRoom(formData: FormData) {
     .eq('id', roomId)
 
   revalidatePath('/dashboard', 'layout')
-  redirect('/dashboard')
+  const redirectTo = formData.get('redirectTo') as string | null
+  redirect(redirectTo || '/dashboard')
 }
 
 export async function updateRoomApprovalSetting(formData: FormData) {

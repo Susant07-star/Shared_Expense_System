@@ -157,6 +157,7 @@ export default async function ProfilePage() {
                             <DialogClose render={<Button variant="ghost">Cancel</Button>} />
                             <form action={deleteRoom}>
                               <input type="hidden" name="roomId" value={room.id} />
+                              <input type="hidden" name="redirectTo" value="/dashboard/profile" />
                               <Button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white">
                                 Yes, Delete Room
                               </Button>
@@ -183,6 +184,7 @@ export default async function ProfilePage() {
                             <DialogClose render={<Button variant="ghost">Cancel</Button>} />
                             <form action={leaveRoom}>
                               <input type="hidden" name="roomId" value={room.id} />
+                              <input type="hidden" name="redirectTo" value="/dashboard/profile" />
                               <Button type="submit" variant="outline">Yes, Leave Room</Button>
                             </form>
                           </DialogFooter>
