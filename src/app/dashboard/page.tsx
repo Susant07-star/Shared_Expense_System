@@ -107,27 +107,28 @@ export default async function DashboardPage({
 
   const roomDetails = allRooms.find(r => r.id === selectedRoomId)!
 
-  // Fetch room members
-  const { data: members } = await supabase
-    .from('room_members')
-    .select('user_id, users(name)')
-    .eq('room_id', selectedRoomId)
+  // Parallel fetches for speed
+  const [membersRes, recentExpensesRes, balances, cookieStore] = await Promise.all([
+    supabase
+      .from('room_members')
+      .select('user_id, users(name)')
+      .eq('room_id', selectedRoomId),
+    supabase
+      .from('expenses')
+      .select('id, description, amount, type, created_at, payer_id, users!expenses_payer_id_fkey(name)')
+      .eq('room_id', selectedRoomId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    calculateBalances(selectedRoomId),
+    cookies(),
+  ])
 
   const memberNames: Record<string, string> = {}
-  members?.forEach((m: any) => {
+  membersRes.data?.forEach((m: any) => {
     memberNames[m.user_id] = m.users?.name || 'Unknown'
   })
 
-  // Fetch recent expenses
-  const { data: recentExpenses } = await supabase
-    .from('expenses')
-    .select('id, description, amount, type, created_at, payer_id, users!expenses_payer_id_fkey(name)')
-    .eq('room_id', selectedRoomId)
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  // Calculate balances
-  const balances = await calculateBalances(selectedRoomId)
+  const recentExpenses = recentExpensesRes.data || []
 
   const totalOwedToMe = balances
     .filter((b: any) => b.to === user.id)
@@ -136,8 +137,7 @@ export default async function DashboardPage({
     .filter((b: any) => b.from === user.id)
     .reduce((sum: number, b: any) => sum + b.amount, 0)
 
-  const cookieStore = await cookies()
-  // Default to Nepali (true) if not set
+  // Default to Nepali (true) if not explicitly set to 'false'
   const initialUseNepali = cookieStore.get('useNepali')?.value !== 'false'
 
   return (
