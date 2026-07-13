@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 export async function createRoom(formData: FormData) {
@@ -36,6 +37,7 @@ export async function createRoom(formData: FormData) {
   }
 
   revalidatePath('/dashboard', 'layout')
+  redirect(`/dashboard?room=${roomId}`)
 }
 
 export async function joinRoom(formData: FormData) {
@@ -71,6 +73,7 @@ export async function joinRoom(formData: FormData) {
   }
 
   revalidatePath('/dashboard', 'layout')
+  redirect(`/dashboard?room=${room.id}`)
 }
 
 export async function addExpense(formData: FormData) {

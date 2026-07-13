@@ -1,19 +1,25 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, TrendingUp, TrendingDown, Minus, ArrowRight, Copy, Check, Globe } from 'lucide-react'
+import {
+  Plus, TrendingUp, TrendingDown, Minus, ArrowRight,
+  Copy, Check, ChevronDown, DollarSign, BadgeCent,
+} from 'lucide-react'
 import { addExpense, settleUp, setNepaliMode } from '@/app/dashboard/actions'
 import { formatDate, formatAmount } from '@/lib/nepali'
 
-// ─── Avatar ─────────────────────────────────────────────────────────────────
+type Room = { id: string; name: string; invite_code: string; role: string }
 
+// ─── Avatar ─────────────────────────────────────────────────────────────────
 function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
   const colors = [
     'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
@@ -81,24 +87,114 @@ function StatCard({
   )
 }
 
+// ─── Currency Dropdown ────────────────────────────────────────────────────────
+function CurrencyDropdown({
+  useNepali,
+  onChange,
+  disabled,
+}: {
+  useNepali: boolean
+  onChange: (val: boolean) => void
+  disabled: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const options = [
+    {
+      value: true,
+      label: 'NPR / BS',
+      sub: 'Nepali Rupees · Bikram Sambat',
+      icon: <BadgeCent className="w-4 h-4 text-indigo-500" />,
+    },
+    {
+      value: false,
+      label: 'USD / AD',
+      sub: 'US Dollar · Gregorian',
+      icon: <DollarSign className="w-4 h-4 text-emerald-500" />,
+    },
+  ]
+
+  const active = options.find(o => o.value === useNepali)!
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        disabled={disabled}
+        className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-200
+          ${useNepali
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+            : 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+          } ${disabled ? 'opacity-60 cursor-wait' : 'hover:brightness-110'}`}
+      >
+        {active.icon}
+        {active.label}
+        <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-900 border rounded-xl shadow-xl z-50 overflow-hidden">
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground px-3 pt-3 pb-1">
+            Display Currency & Date
+          </p>
+          {options.map(opt => (
+            <button
+              key={String(opt.value)}
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors text-left ${
+                opt.value === useNepali ? 'bg-muted/60' : ''
+              }`}
+            >
+              <span className="shrink-0">{opt.icon}</span>
+              <span>
+                <span className="block text-sm font-semibold">{opt.label}</span>
+                <span className="block text-xs text-muted-foreground">{opt.sub}</span>
+              </span>
+              {opt.value === useNepali && (
+                <Check className="w-3.5 h-3.5 ml-auto text-indigo-500 shrink-0" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export function DashboardView({
-  roomName, inviteCode, roomId, recentExpenses, balances,
+  roomName, inviteCode, roomId, allRooms, recentExpenses, balances,
   currentUserId, currentUserName, memberNames, totalOwedToMe, totalIOwe, initialUseNepali,
 }: {
-  roomName: string; inviteCode: string; roomId: string
-  recentExpenses: any[]; balances: any[]
-  currentUserId: string; currentUserName: string
+  roomName: string
+  inviteCode: string
+  roomId: string
+  allRooms: Room[]
+  recentExpenses: any[]
+  balances: any[]
+  currentUserId: string
+  currentUserName: string
   memberNames: Record<string, string>
-  totalOwedToMe: number; totalIOwe: number
+  totalOwedToMe: number
+  totalIOwe: number
   initialUseNepali: boolean
 }) {
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [isTogglePending, startToggleTransition] = useTransition()
+  const [isCurrencyPending, startCurrencyTransition] = useTransition()
   const [copied, setCopied] = useState(false)
-  
-  // Initialize with the prop from the server (cookie)
+
+  // NPR/BS is the default (initialUseNepali=true from server cookie default)
   const [useNepali, setUseNepali] = useState(initialUseNepali)
 
   const netBalance = totalOwedToMe - totalIOwe
@@ -109,6 +205,16 @@ export function DashboardView({
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const handleCurrencyChange = (val: boolean) => {
+    setUseNepali(val)
+    startCurrencyTransition(() => {
+      setNepaliMode(val)
+    })
+  }
+
+  // NPR conversion rate (stored amounts are in USD internally)
+  const NPR_RATE = 135
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
@@ -131,27 +237,14 @@ export function DashboardView({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* Nepali toggle */}
-          <button
-            onClick={() => {
-              const newValue = !useNepali
-              setUseNepali(newValue) // Update client instantly
-              startToggleTransition(() => {
-                setNepaliMode(newValue) // Update server cookie
-              })
-            }}
-            disabled={isTogglePending}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-200 ${
-              useNepali
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                : 'bg-background text-muted-foreground border-border hover:border-indigo-400 hover:text-indigo-600'
-            } ${isTogglePending ? 'opacity-70 cursor-wait' : ''}`}
-            title="Switch between USD and NPR / AD and BS dates"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            {useNepali ? 'NPR / BS' : 'USD / AD'}
-          </button>
+          {/* Currency / Date dropdown */}
+          <CurrencyDropdown
+            useNepali={useNepali}
+            onChange={handleCurrencyChange}
+            disabled={isCurrencyPending}
+          />
 
+          {/* Add Expense */}
           <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
             <DialogTrigger render={
               <Button className="gap-2 shadow-sm hover:shadow transition-shadow">
@@ -161,18 +254,19 @@ export function DashboardView({
             <DialogContent className="sm:max-w-[400px]">
               <DialogHeader>
                 <DialogTitle>Add an Expense</DialogTitle>
-                <DialogDescription>What did you spend money on?</DialogDescription>
+                <DialogDescription>
+                  Enter the amount in {useNepali ? 'Nepali Rupees (NPR)' : 'US Dollars (USD)'}.
+                </DialogDescription>
               </DialogHeader>
               <form
                 action={async (formData) => {
                   startTransition(async () => {
                     if (useNepali) {
-                      const amountStr = formData.get('amount') as string;
-                      const amountNpr = parseFloat(amountStr);
+                      const amountStr = formData.get('amount') as string
+                      const amountNpr = parseFloat(amountStr)
                       if (!isNaN(amountNpr)) {
-                        // Convert back to USD for the backend (1 USD = 133 NPR)
-                        const amountUsd = amountNpr / 133;
-                        formData.set('amount', amountUsd.toString());
+                        // Convert NPR → USD for storage
+                        formData.set('amount', (amountNpr / NPR_RATE).toString())
                       }
                     }
                     const res = await addExpense(formData)
@@ -187,25 +281,27 @@ export function DashboardView({
                   <Input id="description" name="description" placeholder="e.g. Groceries, Netflix, Pizza…" required />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="amount">How much? {useNepali ? '(in NPR)' : '(in USD)'}</Label>
+                  <Label htmlFor="amount">
+                    How much? <span className="text-muted-foreground font-normal">({useNepali ? 'in NPR' : 'in USD'})</span>
+                  </Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
                       {useNepali ? 'Rs.' : '$'}
                     </span>
-                    <Input 
-                      id="amount" 
-                      name="amount" 
-                      type="number" 
-                      step="0.01" 
-                      min="0.01" 
-                      placeholder="0.00" 
-                      required 
-                      className={useNepali ? "pl-9" : "pl-7"} 
+                    <Input
+                      id="amount"
+                      name="amount"
+                      type="number"
+                      step={useNepali ? '1' : '0.01'}
+                      min="1"
+                      placeholder={useNepali ? '0' : '0.00'}
+                      required
+                      className={useNepali ? 'pl-9' : 'pl-7'}
                     />
                   </div>
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="type">Who pays?</Label>
+                  <Label htmlFor="type">Split type</Label>
                   <Select name="type" defaultValue="shared">
                     <SelectTrigger>
                       <SelectValue />
