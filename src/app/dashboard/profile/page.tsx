@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { User, Save, Plus, LogIn, LogOut } from 'lucide-react'
+import { User, Save, Plus, LogIn, LogOut, Clock, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createRoom, joinRoom, updateUserProfile } from '@/app/dashboard/actions'
+import { createRoom, joinRoom, updateUserProfile, cancelJoinRequest } from '@/app/dashboard/actions'
 import { signout } from '@/app/(auth)/actions'
 
 export default async function ProfilePage() {
@@ -18,6 +18,18 @@ export default async function ProfilePage() {
     .select('*')
     .eq('id', user.id)
     .single()
+
+  // Fetch pending room requests
+  const { data: pendingMemberships } = await supabase
+    .from('room_members')
+    .select('room_id, status, rooms(name)')
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+
+  const pendingRequests = pendingMemberships?.map((m: any) => ({
+    id: m.room_id,
+    name: m.rooms?.name || 'Unknown Room',
+  })) || []
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-8 animate-in fade-in duration-300">
@@ -84,6 +96,35 @@ export default async function ProfilePage() {
             </form>
           </div>
         </div>
+
+        {/* Pending Requests */}
+        {pendingRequests.length > 0 && (
+          <div className="border border-amber-200 dark:border-amber-900/50 bg-amber-50/30 dark:bg-amber-950/20 rounded-2xl p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                <Clock className="w-5 h-5" /> Pending Room Requests
+              </h2>
+              <p className="text-sm text-amber-600/70 dark:text-amber-400/70 mt-1">You are waiting for an admin to approve your request to join these rooms.</p>
+            </div>
+            
+            <div className="space-y-3">
+              {pendingRequests.map(req => (
+                <div key={req.id} className="flex items-center justify-between bg-white dark:bg-gray-900 border border-amber-100 dark:border-amber-900 p-3 rounded-xl shadow-sm">
+                  <div>
+                    <p className="font-semibold text-sm">{req.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Status: <span className="text-amber-600 dark:text-amber-500 font-medium">Pending Approval</span></p>
+                  </div>
+                  <form action={cancelJoinRequest}>
+                    <input type="hidden" name="roomId" value={req.id} />
+                    <Button type="submit" variant="ghost" size="sm" className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30">
+                      <X className="w-4 h-4 mr-1" /> Cancel
+                    </Button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Account Actions */}
         <div className="bg-card border rounded-2xl p-6 shadow-sm space-y-4">

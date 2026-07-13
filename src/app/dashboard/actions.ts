@@ -361,3 +361,21 @@ export async function updateUserProfile(formData: FormData) {
 
   revalidatePath('/dashboard', 'layout')
 }
+
+export async function cancelJoinRequest(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const roomId = formData.get('roomId') as string
+  if (!roomId) return
+
+  await supabase
+    .from('room_members')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+
+  revalidatePath('/dashboard', 'layout')
+}
