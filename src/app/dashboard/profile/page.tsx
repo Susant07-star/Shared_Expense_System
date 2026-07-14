@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose
 } from '@/components/ui/dialog'
 import Link from 'next/link'
+import { ExpenseSettingsForm } from '@/components/expense-settings-form'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -86,6 +87,16 @@ export default async function ProfilePage() {
               <Save className="w-4 h-4" /> Save Profile
             </Button>
           </form>
+        </div>
+
+        {/* Expense Settings */}
+        <div className="bg-card border rounded-2xl p-6 shadow-sm">
+          <h2 className="text-lg font-bold">Expense Settings</h2>
+          <p className="text-sm text-muted-foreground mb-6">Manage how others can add expenses involving you.</p>
+          <ExpenseSettingsForm 
+            initialAllowOthers={userProfile?.allow_others_to_add ?? true}
+            initialRequireApproval={userProfile?.require_expense_approval ?? true}
+          />
         </div>
 
         {/* My Rooms */}

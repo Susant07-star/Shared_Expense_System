@@ -135,9 +135,35 @@ export async function addExpense(formData: FormData) {
   const description = formData.get('description') as string
   const amount = parseFloat(formData.get('amount') as string)
   const type = formData.get('type') as 'shared' | 'personal'
+  let payerId = formData.get('payerId') as string
+  
+  if (!payerId) {
+    payerId = user.id
+  }
 
   if (!roomId || !description || isNaN(amount)) {
     return { error: 'Invalid input' }
+  }
+
+  let approvalStatus = 'approved'
+
+  // Check permissions if adding on behalf of someone else
+  if (payerId !== user.id) {
+    const { data: payerPrefs } = await supabase
+      .from('users')
+      .select('allow_others_to_add, require_expense_approval, name')
+      .eq('id', payerId)
+      .single()
+
+    if (payerPrefs) {
+      if (payerPrefs.allow_others_to_add === false) {
+        return { error: `${payerPrefs.name || 'This user'} does not allow others to add expenses on their behalf.` }
+      }
+      if (payerPrefs.require_expense_approval !== false) {
+        // Defaults to true, so if it's true or null, require approval
+        approvalStatus = 'pending'
+      }
+    }
   }
 
   const { data: expense, error: expenseError } = await supabase
@@ -145,11 +171,12 @@ export async function addExpense(formData: FormData) {
     .insert([{
       room_id: roomId,
       created_by: user.id,
-      payer_id: user.id,
+      payer_id: payerId,
       amount,
       description,
       type,
-      status: 'paid'
+      status: 'paid',
+      approval_status: approvalStatus
     }])
     .select()
     .single()
@@ -159,34 +186,61 @@ export async function addExpense(formData: FormData) {
   }
 
   if (type === 'shared') {
-    const { data: members } = await supabase
-      .from('room_members')
-      .select('user_id')
-      .eq('room_id', roomId)
-    
-    if (members && members.length > 0) {
-      const splitAmount = amount / members.length
-      const splits = members.map(m => ({
+    // Use custom splitWith if provided, otherwise fall back to all active members
+    const splitWithStr = formData.get('splitWith') as string | null
+    let splitUserIds: string[] = []
+
+    if (splitWithStr && splitWithStr.trim() !== '') {
+      splitUserIds = splitWithStr.split(',').map(id => id.trim()).filter(Boolean)
+    } else {
+      const { data: members } = await supabase
+        .from('room_members')
+        .select('user_id')
+        .eq('room_id', roomId)
+        .eq('status', 'active')
+      splitUserIds = (members || []).map(m => m.user_id)
+    }
+
+    if (splitUserIds.length > 0) {
+      const splitAmount = amount / splitUserIds.length
+      const splits = splitUserIds.map(uid => ({
         expense_id: expense.id,
-        user_id: m.user_id,
+        user_id: uid,
         amount_owed: splitAmount
       }))
-      
       await supabase.from('expense_splits').insert(splits)
+    }
+  }
 
-      // Notify other members
-      const { data: userProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
-      const actorName = userProfile?.name || 'Someone'
-      const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
-      
-      const otherMembers = members.filter(m => m.user_id !== user.id)
-      await createNotification(supabase, {
-        userIds: otherMembers.map(m => m.user_id),
-        actorId: user.id,
-        roomId,
-        type: 'expense_added',
-        message: `${actorName} added a shared expense: ${description} in ${roomInfo?.name || 'a room'}`
-      })
+  const { data: userProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
+  const actorName = userProfile?.name || 'Someone'
+  const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
+
+  // Notify the payer if it's someone else
+  if (payerId !== user.id) {
+    await createNotification(supabase, {
+      userIds: [payerId],
+      actorId: user.id,
+      roomId,
+      type: 'expense_added',
+      message: `${actorName} added an expense of ${amount} in your name: ${description}. ${approvalStatus === 'pending' ? 'It requires your approval.' : ''}`
+    })
+  }
+
+  // Notify others (excluding the creator and the payer)
+  if (type === 'shared') {
+    const { data: members } = await supabase.from('room_members').select('user_id').eq('room_id', roomId).eq('status', 'active')
+    if (members) {
+      const otherMembers = members.filter(m => m.user_id !== user.id && m.user_id !== payerId)
+      if (otherMembers.length > 0) {
+        await createNotification(supabase, {
+          userIds: otherMembers.map(m => m.user_id),
+          actorId: user.id,
+          roomId,
+          type: 'expense_added',
+          message: `${actorName} added a shared expense: ${description} in ${roomInfo?.name || 'a room'}`
+        })
+      }
     }
   }
 
@@ -194,7 +248,7 @@ export async function addExpense(formData: FormData) {
     room_id: roomId,
     user_id: user.id,
     action_type: 'expense_added',
-    metadata: { description, amount, type }
+    metadata: { description, amount, type, payer_id: payerId, approval_status: approvalStatus }
   }])
 
   revalidatePath('/dashboard', 'layout')
@@ -590,6 +644,77 @@ export async function markNotificationAsRead(notificationId: string) {
     .update({ is_read: true })
     .eq('id', notificationId)
     .eq('user_id', user.id)
+
+  revalidatePath('/dashboard', 'layout')
+}
+
+export async function updateExpensePreferences(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const allowOthers = formData.get('allowOthers') === 'on'
+  const requireApproval = formData.get('requireApproval') === 'on'
+
+  await supabase
+    .from('users')
+    .update({ 
+      allow_others_to_add: allowOthers,
+      require_expense_approval: requireApproval
+    })
+    .eq('id', user.id)
+
+  revalidatePath('/dashboard/profile', 'page')
+}
+
+export async function approveExpense(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const expenseId = formData.get('expenseId') as string
+  if (!expenseId) return
+
+  // User must be the payer to approve
+  await supabase
+    .from('expenses')
+    .update({ approval_status: 'approved' })
+    .eq('id', expenseId)
+    .eq('payer_id', user.id)
+    .eq('approval_status', 'pending')
+
+  revalidatePath('/dashboard', 'layout')
+}
+
+export async function rejectExpense(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const expenseId = formData.get('expenseId') as string
+  if (!expenseId) return
+
+  // User must be the payer to reject
+  await supabase
+    .from('expenses')
+    .update({ approval_status: 'rejected' })
+    .eq('id', expenseId)
+    .eq('payer_id', user.id)
+    .eq('approval_status', 'pending')
+
+  revalidatePath('/dashboard', 'layout')
+}
+
+export async function markAllNotificationsAsRead() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
 
   revalidatePath('/dashboard', 'layout')
 }

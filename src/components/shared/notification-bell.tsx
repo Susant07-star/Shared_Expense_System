@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Bell } from 'lucide-react'
-import { markNotificationAsRead } from '@/app/dashboard/actions'
+import { Bell, CheckCheck } from 'lucide-react'
+import { markNotificationAsRead, markAllNotificationsAsRead } from '@/app/dashboard/actions'
 
 export type Notification = {
   id: string
@@ -51,6 +51,13 @@ export function NotificationBell({ initialNotifications }: { initialNotification
     }
   }
 
+  const handleMarkAllAsRead = async () => {
+    // Optimistic update
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+    // Server action
+    await markAllNotificationsAsRead()
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -67,11 +74,22 @@ export function NotificationBell({ initialNotifications }: { initialNotification
         <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 border rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-96">
           <div className="p-3 border-b flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
             <h3 className="font-semibold text-sm">Notifications</h3>
-            {unreadCount > 0 && (
-              <span className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 px-2 py-0.5 rounded-full font-medium">
-                {unreadCount} new
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllAsRead}
+                  className="text-xs flex items-center gap-1 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                  title="Mark all as read"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {unreadCount > 0 && (
+                <span className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 px-2 py-0.5 rounded-full font-medium">
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
           </div>
           
           <div className="overflow-y-auto flex-1">

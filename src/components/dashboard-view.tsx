@@ -14,7 +14,7 @@ import {
   Plus, TrendingUp, TrendingDown, Minus, ArrowRight,
   Copy, Check, ChevronDown, DollarSign, BadgeCent, UserCircle,
 } from 'lucide-react'
-import { addExpense, settleUp, settleAllBalances, setNepaliMode } from '@/app/dashboard/actions'
+import { addExpense, settleUp, settleAllBalances, setNepaliMode, approveExpense, rejectExpense } from '@/app/dashboard/actions'
 import { formatDate, formatAmount } from '@/lib/nepali'
 import Link from 'next/link'
 
@@ -90,7 +90,7 @@ function StatCard({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export function DashboardView({
-  roomName, inviteCode, roomId, allRooms, recentExpenses, balances,
+  roomName, inviteCode, roomId, allRooms, recentExpenses, pendingExpenses, balances,
   currentUserId, currentUserName, memberNames, totalOwedToMe, totalIOwe, initialUseNepali,
 }: {
   roomName: string
@@ -98,6 +98,7 @@ export function DashboardView({
   roomId: string
   allRooms: Room[]
   recentExpenses: any[]
+  pendingExpenses: any[]
   balances: any[]
   currentUserId: string
   currentUserName: string
@@ -110,6 +111,32 @@ export function DashboardView({
   const [isPending, startTransition] = useTransition()
   const [isCurrencyPending, startCurrencyTransition] = useTransition()
   const [copied, setCopied] = useState(false)
+
+  // Track selected payer to fix Radix UI Select rendering raw IDs
+  const [selectedPayer, setSelectedPayer] = useState(currentUserId)
+
+  // Custom split: which members to include in the split
+  const allMemberIds = Object.keys(memberNames)
+  const [splitWith, setSplitWith] = useState<string[]>(allMemberIds)
+  const [splitType, setSplitType] = useState<'shared' | 'personal'>('shared')
+
+  // Amount input for live split preview
+  const [expenseAmount, setExpenseAmount] = useState<number>(0)
+
+  const toggleMember = (id: string) => {
+    setSplitWith(prev =>
+      prev.includes(id)
+        ? prev.length > 1 ? prev.filter(m => m !== id) : prev // at least 1
+        : [...prev, id]
+    )
+  }
+
+  const resetForm = () => {
+    setSelectedPayer(currentUserId)
+    setSplitWith(allMemberIds)
+    setSplitType('shared')
+    setExpenseAmount(0)
+  }
 
   // NPR/BS is the default (initialUseNepali=true from server cookie default)
   const [useNepali, setUseNepali] = useState(initialUseNepali)
@@ -155,7 +182,10 @@ export function DashboardView({
 
         <div className="flex items-center gap-2 shrink-0">
           {/* Add Expense */}
-          <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
+          <Dialog open={isAddExpenseOpen} onOpenChange={(open) => {
+            setIsAddExpenseOpen(open)
+            if (!open) resetForm()
+          }}>
             <DialogTrigger render={
               <Button className="gap-2 shadow-sm hover:shadow transition-shadow">
                 <Plus className="w-4 h-4" /> Add Expense
@@ -175,12 +205,18 @@ export function DashboardView({
                       const amountStr = formData.get('amount') as string
                       const amountNpr = parseFloat(amountStr)
                       if (!isNaN(amountNpr)) {
-                        // Convert NPR → USD for storage
                         formData.set('amount', (amountNpr / NPR_RATE).toString())
                       }
                     }
+                    // Pass custom split members
+                    if (splitType === 'shared') {
+                      formData.set('splitWith', splitWith.join(','))
+                    }
                     const res = await addExpense(formData)
-                    if (!res?.error) setIsAddExpenseOpen(false)
+                    if (!res?.error) {
+                      setIsAddExpenseOpen(false)
+                      resetForm()
+                    }
                   })
                 }}
                 className="grid gap-4 pt-2"
@@ -207,22 +243,91 @@ export function DashboardView({
                       placeholder={useNepali ? '0' : '0.00'}
                       required
                       className={useNepali ? 'pl-9' : 'pl-7'}
+                      onChange={e => setExpenseAmount(parseFloat(e.target.value) || 0)}
                     />
                   </div>
                 </div>
                 <div className="grid gap-1.5">
+                  <Label htmlFor="payerId">Paid By</Label>
+                  <Select name="payerId" value={selectedPayer} onValueChange={(v) => { if (v) setSelectedPayer(v) }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select who paid">
+                        {selectedPayer === currentUserId ? 'You' : memberNames[selectedPayer]}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={currentUserId}>You</SelectItem>
+                      {Object.entries(memberNames)
+                        .filter(([id]) => id !== currentUserId)
+                        .map(([id, name]) => (
+                          <SelectItem key={id} value={id}>{name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1.5">
                   <Label htmlFor="type">Split type</Label>
-                  <Select name="type" defaultValue="shared">
+                  <Select
+                    name="type"
+                    value={splitType}
+                    onValueChange={(v) => {
+                      if (!v) return
+                      const t = v as 'shared' | 'personal'
+                      setSplitType(t)
+                      if (t === 'shared') setSplitWith(allMemberIds)
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="shared">Split equally with everyone</SelectItem>
+                      <SelectItem value="shared">Split with members</SelectItem>
                       <SelectItem value="personal">Just me — no split</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" disabled={isPending} className="mt-2 transition-opacity">
+
+                {/* Member toggle chips — only for shared */}
+                {splitType === 'shared' && (
+                  <div className="grid gap-2">
+                    <Label className="text-xs text-muted-foreground">Split with</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(memberNames).map(([id, name]) => {
+                        const isSelected = splitWith.includes(id)
+                        const displayName = id === currentUserId ? 'You' : name
+                        const initial = displayName[0]?.toUpperCase() || '?'
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => toggleMember(id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all duration-150 ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                : 'bg-muted text-muted-foreground border-border hover:border-indigo-400 hover:text-foreground'
+                            }`}
+                          >
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              isSelected ? 'bg-white/20' : 'bg-slate-300 dark:bg-slate-600'
+                            }`}>{initial}</span>
+                            {displayName}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {/* Live split preview */}
+                    {splitWith.length > 0 && expenseAmount > 0 && (
+                      <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+                        {useNepali
+                          ? `Rs. ${expenseAmount} ÷ ${splitWith.length} ${splitWith.length === 1 ? 'person' : 'people'} = Rs. ${(expenseAmount / splitWith.length).toFixed(0)} each`
+                          : `$${expenseAmount} ÷ ${splitWith.length} ${splitWith.length === 1 ? 'person' : 'people'} = $${(expenseAmount / splitWith.length).toFixed(2)} each`
+                        }
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <Button type="submit" disabled={isPending} className="mt-1 transition-opacity">
                   {isPending ? 'Saving…' : 'Save Expense'}
                 </Button>
               </form>
@@ -230,6 +335,39 @@ export function DashboardView({
           </Dialog>
         </div>
       </div>
+
+      {/* Pending Approvals */}
+      {pendingExpenses && pendingExpenses.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 shadow-sm mb-6 space-y-3">
+          <h3 className="font-semibold text-amber-800 dark:text-amber-400 flex items-center gap-2">
+            <UserCircle className="w-5 h-5" /> Pending Approvals
+          </h3>
+          <div className="space-y-2">
+            {pendingExpenses.map((exp: any) => (
+              <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                <div>
+                  <p className="text-sm font-medium">
+                    <span className="font-semibold">{exp.users?.name || 'Someone'}</span> added an expense in your name.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    "{exp.description}" for {formatAmount(exp.amount, useNepali)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <form action={rejectExpense}>
+                    <input type="hidden" name="expenseId" value={exp.id} />
+                    <Button type="submit" variant="outline" size="sm" className="h-8 text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30">Reject</Button>
+                  </form>
+                  <form action={approveExpense}>
+                    <input type="hidden" name="expenseId" value={exp.id} />
+                    <Button type="submit" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">Approve</Button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
@@ -368,11 +506,20 @@ export function DashboardView({
 
         {/* Recent Expenses tab */}
         <TabsContent value="recent" className="mt-4 space-y-2">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-muted-foreground">Recent Expenses</h3>
+            <Button onClick={() => setIsAddExpenseOpen(true)} size="sm" className="gap-1.5 h-8 text-xs shadow-sm hover:shadow transition-shadow">
+              <Plus className="w-3.5 h-3.5" /> Add Expense
+            </Button>
+          </div>
           {recentExpenses.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-12 text-muted-foreground flex flex-col items-center">
               <div className="text-4xl mb-3">🧾</div>
-              <p className="font-medium">No expenses yet</p>
-              <p className="text-sm mt-1">Add your first expense using the button above.</p>
+              <p className="font-medium mb-1">No expenses yet</p>
+              <p className="text-sm mb-4">Add your first expense to get started.</p>
+              <Button onClick={() => setIsAddExpenseOpen(true)} className="gap-2 shadow-sm hover:shadow transition-shadow">
+                <Plus className="w-4 h-4" /> Add Expense
+              </Button>
             </div>
           ) : (
             recentExpenses.map((exp, idx) => {

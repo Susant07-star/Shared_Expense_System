@@ -138,17 +138,25 @@ export default async function DashboardPage({
   const roomDetails = activeRooms.find(r => r.id === selectedRoomId)!
 
   // Parallel fetches for speed
-  const [membersRes, recentExpensesRes, balances, cookieStore] = await Promise.all([
+  const [membersRes, recentExpensesRes, pendingExpensesRes, balances, cookieStore] = await Promise.all([
     supabase
       .from('room_members')
       .select('user_id, users(name)')
       .eq('room_id', selectedRoomId),
     supabase
       .from('expenses')
-      .select('id, description, amount, type, created_at, payer_id, users!expenses_payer_id_fkey(name)')
+      .select('id, amount, description, type, created_at, created_by, payer_id, users!expenses_payer_id_fkey(name)')
       .eq('room_id', selectedRoomId)
+      .eq('approval_status', 'approved')
       .order('created_at', { ascending: false })
       .limit(5),
+    supabase
+      .from('expenses')
+      .select('id, amount, description, type, created_at, created_by, users!expenses_created_by_fkey(name)')
+      .eq('room_id', selectedRoomId)
+      .eq('payer_id', user.id)
+      .eq('approval_status', 'pending')
+      .order('created_at', { ascending: false }),
     calculateBalances(selectedRoomId),
     cookies(),
   ])
@@ -159,6 +167,7 @@ export default async function DashboardPage({
   })
 
   const recentExpenses = recentExpensesRes.data || []
+  const pendingExpenses = pendingExpensesRes.data || []
 
   const totalOwedToMe = balances
     .filter((b: any) => b.to === user.id)
@@ -177,6 +186,7 @@ export default async function DashboardPage({
       inviteCode={roomDetails.invite_code}
       allRooms={activeRooms}
       recentExpenses={recentExpenses || []}
+      pendingExpenses={pendingExpenses || []}
       balances={balances || []}
       currentUserId={user.id}
       currentUserName={memberNames[user.id] || 'You'}

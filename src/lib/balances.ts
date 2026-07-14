@@ -22,6 +22,7 @@ export async function calculateBalances(roomId: string) {
     `)
     .eq('room_id', roomId)
     .eq('status', 'paid')
+    .eq('approval_status', 'approved')
 
   // 2. Get all settlements
   const { data: settlements } = await supabase
