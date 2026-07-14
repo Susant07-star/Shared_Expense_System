@@ -426,6 +426,12 @@ export async function leaveRoom(formData: FormData) {
     redirect('/dashboard')
   }
 
+  // Get room name and leaving user's name for notifications
+  const [{ data: roomInfo }, { data: leavingUser }] = await Promise.all([
+    supabase.from('rooms').select('name').eq('id', roomId).single(),
+    supabase.from('users').select('name').eq('id', user.id).single(),
+  ])
+
   // If admin is leaving and there are other members, promote the next one
   if (isAdmin) {
     const nextAdmin = otherMembers.find(m => m.role !== 'admin') || otherMembers[0]
@@ -436,18 +442,27 @@ export async function leaveRoom(formData: FormData) {
       .eq('room_id', roomId)
       .eq('user_id', nextAdmin.user_id)
 
-    // Get room name and leaving user's name for the notification
-    const [{ data: roomInfo }, { data: leavingUser }] = await Promise.all([
-      supabase.from('rooms').select('name').eq('id', roomId).single(),
-      supabase.from('users').select('name').eq('id', user.id).single(),
-    ])
-
     await createNotification(supabase, {
       userIds: [nextAdmin.user_id],
       actorId: user.id,
       roomId,
       type: 'room_update',
       message: `${leavingUser?.name || 'The admin'} left "${roomInfo?.name || 'the room'}". You are now the admin.`,
+    })
+  }
+
+  // Notify all remaining members that the user left
+  const membersToNotify = isAdmin
+    ? otherMembers.filter(m => m.user_id !== (otherMembers.find(a => a.role !== 'admin') || otherMembers[0]).user_id) // Exclude the new admin who already got a specific message
+    : otherMembers
+
+  if (membersToNotify.length > 0) {
+    await createNotification(supabase, {
+      userIds: membersToNotify.map(m => m.user_id),
+      actorId: user.id,
+      roomId,
+      type: 'member_left',
+      message: `${leavingUser?.name || 'A member'} left "${roomInfo?.name || 'the room'}".`,
     })
   }
 
@@ -698,6 +713,7 @@ export async function kickMember(formData: FormData) {
   // Notify the kicked user
   const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
   const { data: callerProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
+  const { data: targetProfile } = await supabase.from('users').select('name').eq('id', targetUserId).single()
 
   await createNotification(supabase, {
     userIds: [targetUserId],
@@ -706,6 +722,23 @@ export async function kickMember(formData: FormData) {
     type: 'room_update',
     message: `${callerProfile?.name || 'An admin'} removed you from ${roomInfo?.name || 'the room'}.`
   })
+
+  // Notify other remaining members
+  const { data: otherMembers } = await supabase
+    .from('room_members')
+    .select('user_id')
+    .eq('room_id', roomId)
+    .eq('status', 'active')
+
+  if (otherMembers && otherMembers.length > 0) {
+    await createNotification(supabase, {
+      userIds: otherMembers.map(m => m.user_id),
+      actorId: user.id,
+      roomId,
+      type: 'member_left',
+      message: `${targetProfile?.name || 'A member'} was removed from ${roomInfo?.name || 'the room'}.`
+    })
+  }
 
   revalidatePath('/dashboard', 'layout')
 }
