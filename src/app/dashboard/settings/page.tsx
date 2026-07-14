@@ -40,7 +40,7 @@ export default async function SettingsPage({
 
   const { data: room } = await supabase
     .from('rooms')
-    .select('name, require_approval')
+    .select('name, require_approval, invite_code')
     .eq('id', roomId)
     .single()
 
@@ -68,7 +68,7 @@ export default async function SettingsPage({
           </div>
           
           <div className="max-w-md space-y-4">
-            <CopyField label="Room ID" value={roomId} id="roomIdDisplay" />
+            <CopyField label="Room Invite Code" value={room?.invite_code || ''} id="roomIdDisplay" />
           </div>
 
           <form action={updateRoomName} className="space-y-4 max-w-md">
