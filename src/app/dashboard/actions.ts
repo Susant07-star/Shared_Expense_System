@@ -398,9 +398,60 @@ export async function leaveRoom(formData: FormData) {
   if (!user) return
 
   const roomId = formData.get('roomId') as string
-
   if (!roomId) return
 
+  // Check the leaving user's role
+  const { data: myMembership } = await supabase
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  const isAdmin = myMembership?.role === 'admin'
+
+  // Get all other active members in order of who joined first
+  const { data: otherMembers } = await supabase
+    .from('room_members')
+    .select('user_id, role, joined_at')
+    .eq('room_id', roomId)
+    .eq('status', 'active')
+    .neq('user_id', user.id)
+    .order('joined_at', { ascending: true })
+
+  if (!otherMembers || otherMembers.length === 0) {
+    // Last member leaving → delete the room entirely
+    await fullDeleteRoom(supabase, roomId)
+    revalidatePath('/dashboard', 'layout')
+    redirect('/dashboard')
+  }
+
+  // If admin is leaving and there are other members, promote the next one
+  if (isAdmin) {
+    const nextAdmin = otherMembers.find(m => m.role !== 'admin') || otherMembers[0]
+
+    await supabase
+      .from('room_members')
+      .update({ role: 'admin' })
+      .eq('room_id', roomId)
+      .eq('user_id', nextAdmin.user_id)
+
+    // Get room name and leaving user's name for the notification
+    const [{ data: roomInfo }, { data: leavingUser }] = await Promise.all([
+      supabase.from('rooms').select('name').eq('id', roomId).single(),
+      supabase.from('users').select('name').eq('id', user.id).single(),
+    ])
+
+    await createNotification(supabase, {
+      userIds: [nextAdmin.user_id],
+      actorId: user.id,
+      roomId,
+      type: 'room_update',
+      message: `${leavingUser?.name || 'The admin'} left "${roomInfo?.name || 'the room'}". You are now the admin.`,
+    })
+  }
+
+  // Remove the leaving user
   await supabase
     .from('room_members')
     .delete()
@@ -408,7 +459,6 @@ export async function leaveRoom(formData: FormData) {
     .eq('user_id', user.id)
 
   revalidatePath('/dashboard', 'layout')
-  // redirect back to whichever page called this (profile or settings)
   const redirectTo = formData.get('redirectTo') as string | null
   redirect(redirectTo || '/dashboard')
 }
@@ -418,6 +468,26 @@ export async function setNepaliMode(enabled: boolean) {
   const cookieStore = await cookies()
   cookieStore.set('useNepali', enabled ? 'true' : 'false', { path: '/' })
   revalidatePath('/', 'layout')
+}
+
+// Helper function to wipe all room data and delete the room (manual cascade)
+async function fullDeleteRoom(supabase: any, roomId: string) {
+  // 1. Delete all expenses and their splits
+  const { data: expenses } = await supabase.from('expenses').select('id').eq('room_id', roomId)
+  if (expenses && expenses.length > 0) {
+    const expenseIds = expenses.map((e: any) => e.id)
+    await supabase.from('expense_splits').delete().in('expense_id', expenseIds)
+    await supabase.from('expenses').delete().in('id', expenseIds)
+  }
+
+  // 2. Delete all other related records
+  await supabase.from('settlements').delete().eq('room_id', roomId)
+  await supabase.from('activity_logs').delete().eq('room_id', roomId)
+  await supabase.from('notifications').delete().eq('room_id', roomId)
+  
+  // 3. Delete members and the room itself
+  await supabase.from('room_members').delete().eq('room_id', roomId)
+  await supabase.from('rooms').delete().eq('id', roomId)
 }
 
 export async function deleteRoom(formData: FormData) {
@@ -438,11 +508,8 @@ export async function deleteRoom(formData: FormData) {
 
   if (membership?.role !== 'admin') return
 
-  // Note: For this to work, public.rooms needs a FOR DELETE RLS policy for admins.
-  await supabase
-    .from('rooms')
-    .delete()
-    .eq('id', roomId)
+  // Manually delete all related records then the room to avoid foreign key / RLS cascade issues
+  await fullDeleteRoom(supabase, roomId)
 
   revalidatePath('/dashboard', 'layout')
   const redirectTo = formData.get('redirectTo') as string | null
