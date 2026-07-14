@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { updateRoomName, leaveRoom, deleteRoom } from '@/app/dashboard/actions'
 import { SecurityToggle } from '@/components/security-toggle'
+import { CopyField } from '@/components/shared/copy-field'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose
 } from '@/components/ui/dialog'
@@ -60,9 +61,15 @@ export default async function SettingsPage({
       <div className="space-y-6">
 
         {/* Rename Room */}
-        <div className="bg-card border rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold">Room Profile</h2>
-          <p className="text-sm text-muted-foreground mb-4">Change the name of your current room.</p>
+        <div className="bg-card border rounded-2xl p-6 shadow-sm space-y-6">
+          <div>
+            <h2 className="text-lg font-bold">Room Profile</h2>
+            <p className="text-sm text-muted-foreground">Manage your current room details.</p>
+          </div>
+          
+          <div className="max-w-md space-y-4">
+            <CopyField label="Room ID" value={roomId} id="roomIdDisplay" />
+          </div>
 
           <form action={updateRoomName} className="space-y-4 max-w-md">
             <input type="hidden" name="roomId" value={roomId} />
