@@ -4,7 +4,7 @@ import { Settings, Save, LogOut, Plus, LogIn, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { updateRoomName, leaveRoom, deleteRoom } from '@/app/dashboard/actions'
+import { updateRoomName, leaveRoom, deleteRoom, resetRoomData } from '@/app/dashboard/actions'
 import { SecurityToggle } from '@/components/security-toggle'
 import { CopyField } from '@/components/shared/copy-field'
 import {
@@ -145,30 +145,59 @@ export default async function SettingsPage({
           </div>
 
           {isAdmin && (
-            <div className="pt-6 border-t border-rose-200/50 dark:border-rose-900/50">
-              <p className="text-sm text-rose-600/70 dark:text-rose-400/70 mb-4 font-medium">Delete this room completely. This action cannot be undone.</p>
-              <Dialog>
-                <DialogTrigger render={
-                  <Button variant="destructive" className="gap-2">
-                    <Trash2 className="w-4 h-4" /> Delete Room
-                  </Button>
-                } />
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Delete Room</DialogTitle>
-                    <DialogDescription>
-                      Are you absolutely sure you want to delete this room? This will permanently delete all expenses, members, and activity logs. This action cannot be undone.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter className="mt-4">
-                    <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-                    <form action={deleteRoom}>
-                      <input type="hidden" name="roomId" value={roomId} />
-                      <Button type="submit" variant="destructive">Confirm Delete</Button>
-                    </form>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+            <div className="pt-6 border-t border-rose-200/50 dark:border-rose-900/50 space-y-4">
+              {/* Reset Room Data — testing convenience */}
+              <div>
+                <p className="text-sm text-amber-600/80 dark:text-amber-400/70 mb-3 font-medium">⚠️ Testing: Wipe all expenses, settlements and logs but keep the room and members.</p>
+                <Dialog>
+                  <DialogTrigger render={
+                    <Button variant="outline" className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30">
+                      🧹 Reset Room Data
+                    </Button>
+                  } />
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Reset Room Data</DialogTitle>
+                      <DialogDescription>
+                        This will permanently delete all expenses, splits, settlements, activity logs, and notifications for this room. The room itself and all members will remain. Use this to clear test data.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4">
+                      <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+                      <form action={async (formData) => { await resetRoomData(formData) }}>
+                        <input type="hidden" name="roomId" value={roomId} />
+                        <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white">Yes, Reset Data</Button>
+                      </form>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div>
+                <p className="text-sm text-rose-600/70 dark:text-rose-400/70 mb-4 font-medium">Delete this room completely. This action cannot be undone.</p>
+                <Dialog>
+                  <DialogTrigger render={
+                    <Button variant="destructive" className="gap-2">
+                      <Trash2 className="w-4 h-4" /> Delete Room
+                    </Button>
+                  } />
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete Room</DialogTitle>
+                      <DialogDescription>
+                        Are you absolutely sure you want to delete this room? This will permanently delete all expenses, members, and activity logs. This action cannot be undone.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4">
+                      <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+                      <form action={deleteRoom}>
+                        <input type="hidden" name="roomId" value={roomId} />
+                        <Button type="submit" variant="destructive">Confirm Delete</Button>
+                      </form>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           )}
         </div>

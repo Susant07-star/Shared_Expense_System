@@ -212,6 +212,7 @@ export async function addExpense(formData: FormData) {
     }
   }
 
+  const displayAmount = (formData.get('displayAmount') as string) || amount.toString()
   const { data: userProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
   const actorName = userProfile?.name || 'Someone'
   const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
@@ -223,7 +224,7 @@ export async function addExpense(formData: FormData) {
       actorId: user.id,
       roomId,
       type: 'expense_added',
-      message: `${actorName} added an expense of ${amount} in your name: ${description}. ${approvalStatus === 'pending' ? 'It requires your approval.' : ''}`
+      message: `${actorName} added an expense of ${displayAmount} in your name: "${description}".${approvalStatus === 'pending' ? ' It requires your approval.' : ''}`
     })
   }
 
@@ -717,4 +718,44 @@ export async function markAllNotificationsAsRead() {
     .eq('is_read', false)
 
   revalidatePath('/dashboard', 'layout')
+}
+
+export async function resetRoomData(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const roomId = formData.get('roomId') as string
+  if (!roomId) return { error: 'Missing room ID' }
+
+  // Only admins can reset room data
+  const { data: membership } = await supabase
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') {
+    return { error: 'Only admins can reset room data' }
+  }
+
+  // Delete in order: splits → expenses → settlements → activity_logs → notifications
+  const { data: expenses } = await supabase
+    .from('expenses')
+    .select('id')
+    .eq('room_id', roomId)
+
+  if (expenses && expenses.length > 0) {
+    const expenseIds = expenses.map(e => e.id)
+    await supabase.from('expense_splits').delete().in('expense_id', expenseIds)
+    await supabase.from('expenses').delete().in('id', expenseIds)
+  }
+
+  await supabase.from('settlements').delete().eq('room_id', roomId)
+  await supabase.from('activity_logs').delete().eq('room_id', roomId)
+  await supabase.from('notifications').delete().eq('room_id', roomId)
+
+  revalidatePath('/dashboard', 'layout')
+  return { success: true }
 }

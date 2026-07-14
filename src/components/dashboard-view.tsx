@@ -17,6 +17,7 @@ import {
 import { addExpense, settleUp, settleAllBalances, setNepaliMode, approveExpense, rejectExpense } from '@/app/dashboard/actions'
 import { formatDate, formatAmount } from '@/lib/nepali'
 import Link from 'next/link'
+import { SettleButton } from '@/components/settle-button'
 
 type Room = { id: string; name: string; invite_code: string; role: string }
 
@@ -201,11 +202,17 @@ export function DashboardView({
               <form
                 action={async (formData) => {
                   startTransition(async () => {
+                    // Capture the user-visible amount BEFORE currency conversion for notifications
+                    const rawAmountStr = formData.get('amount') as string
+                    const rawAmount = parseFloat(rawAmountStr)
                     if (useNepali) {
-                      const amountStr = formData.get('amount') as string
-                      const amountNpr = parseFloat(amountStr)
-                      if (!isNaN(amountNpr)) {
-                        formData.set('amount', (amountNpr / NPR_RATE).toString())
+                      if (!isNaN(rawAmount)) {
+                        formData.set('displayAmount', `Rs. ${rawAmount.toLocaleString()}`)
+                        formData.set('amount', (rawAmount / NPR_RATE).toString())
+                      }
+                    } else {
+                      if (!isNaN(rawAmount)) {
+                        formData.set('displayAmount', `$${rawAmount.toFixed(2)}`)
                       }
                     }
                     // Pass custom split members
@@ -468,34 +475,12 @@ export function DashboardView({
                       {formatAmount(b.amount, useNepali)}
                     </span>
                     {isUserOwing && (
-                      <Dialog>
-                        <DialogTrigger render={
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs h-7 px-2.5 border-rose-200 hover:bg-rose-100 dark:border-rose-800 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 transition-all"
-                          >
-                            Mark Paid
-                          </Button>
-                        } />
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Confirm Payment</DialogTitle>
-                            <DialogDescription>
-                              Are you sure you want to mark this balance as paid to {toName}?
-                            </DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter>
-                            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
-                            <form action={settleUp}>
-                              <input type="hidden" name="roomId" value={roomId} />
-                              <input type="hidden" name="payeeId" value={b.to} />
-                              <input type="hidden" name="amount" value={b.amount} />
-                              <Button type="submit">Confirm</Button>
-                            </form>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <SettleButton
+                        roomId={roomId}
+                        payeeId={b.to}
+                        payeeName={toName}
+                        amount={b.amount}
+                      />
                     )}
                   </div>
                 </div>
