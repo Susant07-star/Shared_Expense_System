@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Crown, User, ShieldCheck } from 'lucide-react'
+import { Crown, User, ShieldCheck, UserMinus } from 'lucide-react'
 import { cookies } from 'next/headers'
 import { formatDate } from '@/lib/nepali'
 import {
@@ -233,10 +233,39 @@ export default async function MembersPage({
                       </Dialog>
                     )}
 
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <User className="w-4 h-4" />
-                      <span className="text-xs font-medium">Member</span>
-                    </div>
+                    {/* Kick Member button — only shown to admins, not for themselves */}
+                    {isAdmin && !isYou && (
+                      <Dialog>
+                        <DialogTrigger render={
+                          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:text-rose-400 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-800/50 rounded-lg transition-colors">
+                            <UserMinus className="w-3.5 h-3.5" />
+                            Kick
+                          </button>
+                        } />
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Kick Member?</DialogTitle>
+                            <DialogDescription>
+                              Are you sure you want to remove <span className="font-semibold text-foreground">{name}</span> from this room? They will no longer have access to expenses or activity.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+                            <form action={async (fd) => {
+                              'use server'
+                              const { kickMember } = await import('@/app/dashboard/actions')
+                              await kickMember(fd)
+                            }}>
+                              <input type="hidden" name="roomId" value={roomId} />
+                              <input type="hidden" name="targetUserId" value={m.user_id} />
+                              <Button type="submit" variant="destructive">
+                                Yes, Kick Member
+                              </Button>
+                            </form>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                   </div>
                 </div>
               )

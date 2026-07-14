@@ -668,6 +668,48 @@ export async function promoteToAdmin(formData: FormData) {
   revalidatePath('/dashboard', 'layout')
 }
 
+export async function kickMember(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const roomId = formData.get('roomId') as string
+  const targetUserId = formData.get('targetUserId') as string
+
+  if (!roomId || !targetUserId) return
+
+  // Verify caller is admin
+  const { data: membership } = await supabase
+    .from('room_members')
+    .select('role')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership?.role !== 'admin') return
+
+  // Delete the user from the room
+  await supabase
+    .from('room_members')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('user_id', targetUserId)
+
+  // Notify the kicked user
+  const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
+  const { data: callerProfile } = await supabase.from('users').select('name').eq('id', user.id).single()
+
+  await createNotification(supabase, {
+    userIds: [targetUserId],
+    actorId: user.id,
+    roomId,
+    type: 'room_update',
+    message: `${callerProfile?.name || 'An admin'} removed you from ${roomInfo?.name || 'the room'}.`
+  })
+
+  revalidatePath('/dashboard', 'layout')
+}
+
 export async function updateUserProfile(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
