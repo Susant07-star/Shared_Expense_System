@@ -4,6 +4,17 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+import webpush from 'web-push'
+
+function getWebPush() {
+  webpush.setVapidDetails(
+    'mailto:support@sharedexpenses.com',
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string,
+    process.env.VAPID_PRIVATE_KEY as string
+  )
+  return webpush
+}
+
 // Helper for notifications
 async function createNotification(supabase: any, { userIds, actorId, roomId, type, message }: { userIds: string[], actorId?: string, roomId?: string, type: string, message: string }) {
   if (!userIds || userIds.length === 0) return
@@ -15,6 +26,41 @@ async function createNotification(supabase: any, { userIds, actorId, roomId, typ
     message
   }))
   await supabase.from('notifications').insert(notifications)
+
+  // Send Web Push Notifications
+  try {
+    const { data: subs } = await supabase
+      .from('push_subscriptions')
+      .select('*')
+      .in('user_id', userIds)
+
+    if (subs && subs.length > 0) {
+      const wp = getWebPush()
+      const payload = JSON.stringify({
+        title: 'Shared Expenses',
+        body: message,
+        data: { url: roomId ? `/dashboard?room=${roomId}` : '/dashboard' }
+      })
+
+      const pushPromises = subs.map((sub: any) => 
+        wp.sendNotification({
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.p256dh,
+            auth: sub.auth
+          }
+        }, payload).catch(async (err: any) => {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            // Subscription expired
+            await supabase.from('push_subscriptions').delete().eq('id', sub.id)
+          }
+        })
+      )
+      await Promise.allSettled(pushPromises)
+    }
+  } catch (error) {
+    console.error('Error sending push notifications:', error)
+  }
 }
 
 export async function createRoom(formData: FormData) {

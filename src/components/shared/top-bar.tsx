@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { UserCircle } from 'lucide-react'
 import { NotificationBell } from './notification-bell'
 import { CurrencyDropdown } from './currency-dropdown'
+import { PushPrompt } from '../push-prompt'
 import { cookies } from 'next/headers'
 
 export async function TopBar() {
@@ -33,6 +34,9 @@ export async function TopBar() {
   return (
     <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b shrink-0 h-16 flex items-center">
       <div className="w-full max-w-4xl mx-auto px-4 md:px-8 flex items-center justify-end gap-3">
+
+        {/* Push Notification Toggle */}
+        <PushPrompt />
 
         {/* Currency Toggle */}
         <CurrencyDropdown initialUseNepali={useNepali} />

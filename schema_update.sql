@@ -36,3 +36,21 @@ CREATE POLICY "Users can update expenses" ON public.expenses
     -- User can update if they created it OR if they are the payer (for approving/rejecting)
     auth.uid() = created_by OR auth.uid() = payer_id
   );
+
+-- 6. Add push_subscriptions table for Web Push notifications
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    -- A user can have multiple subscriptions (e.g. phone, desktop)
+    UNIQUE(user_id, endpoint)
+);
+
+-- RLS for push_subscriptions
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own push subscriptions" ON public.push_subscriptions
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

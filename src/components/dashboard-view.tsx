@@ -21,6 +21,17 @@ import { SettleButton } from '@/components/settle-button'
 
 type Room = { id: string; name: string; invite_code: string; role: string }
 
+export type OfflineExpense = {
+  id: string
+  description: string
+  amount: string
+  displayAmount: string
+  payerId: string
+  roomId: string
+  splitWith?: string
+  date: string
+}
+
 // ─── Avatar ─────────────────────────────────────────────────────────────────
 function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
   const colors = [
@@ -112,6 +123,55 @@ export function DashboardView({
   const [isPending, startTransition] = useTransition()
   const [isCurrencyPending, startCurrencyTransition] = useTransition()
   const [copied, setCopied] = useState(false)
+
+  // ─── Offline Sync Queue ───────────────────────────────────────────────────
+  const [offlineQueue, setOfflineQueue] = useState<OfflineExpense[]>([])
+
+  useEffect(() => {
+    const stored = localStorage.getItem(`offlineQueue_${roomId}`)
+    if (stored) {
+      try {
+        setOfflineQueue(JSON.parse(stored))
+      } catch (e) {}
+    }
+  }, [roomId])
+
+  useEffect(() => {
+    localStorage.setItem(`offlineQueue_${roomId}`, JSON.stringify(offlineQueue))
+  }, [offlineQueue, roomId])
+
+  useEffect(() => {
+    const syncQueue = async () => {
+      if (offlineQueue.length === 0) return
+      
+      const toProcess = [...offlineQueue]
+      setOfflineQueue([]) // Clear immediately to prevent double processing
+      
+      for (const item of toProcess) {
+        const fd = new FormData()
+        fd.append('roomId', item.roomId)
+        fd.append('description', item.description)
+        fd.append('amount', item.amount)
+        fd.append('displayAmount', item.displayAmount)
+        fd.append('payerId', item.payerId)
+        if (item.splitWith) fd.append('splitWith', item.splitWith)
+        
+        try {
+          await addExpense(fd)
+        } catch (err) {
+          // If it fails (still offline), put it back
+          setOfflineQueue(prev => [...prev, item])
+        }
+      }
+    }
+
+    const handleOnline = () => {
+      syncQueue()
+    }
+
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [offlineQueue])
 
   // Track selected payer to fix Radix UI Select rendering raw IDs
   const [selectedPayer, setSelectedPayer] = useState(currentUserId)
@@ -219,6 +279,24 @@ export function DashboardView({
                     if (splitType === 'shared') {
                       formData.set('splitWith', splitWith.join(','))
                     }
+
+                    if (!navigator.onLine) {
+                      const offlineItem: OfflineExpense = {
+                        id: Date.now().toString(),
+                        roomId: roomId,
+                        description: formData.get('description') as string,
+                        amount: formData.get('amount') as string,
+                        displayAmount: formData.get('displayAmount') as string,
+                        payerId: formData.get('payerId') as string,
+                        splitWith: splitType === 'shared' ? splitWith.join(',') : undefined,
+                        date: new Date().toISOString()
+                      }
+                      setOfflineQueue(prev => [offlineItem, ...prev])
+                      setIsAddExpenseOpen(false)
+                      resetForm()
+                      return
+                    }
+
                     const res = await addExpense(formData)
                     if (!res?.error) {
                       setIsAddExpenseOpen(false)
@@ -503,7 +581,46 @@ export function DashboardView({
               <Plus className="w-3.5 h-3.5" /> Add Expense
             </Button>
           </div>
-          {recentExpenses.length === 0 ? (
+
+          {/* Render Offline Queue */}
+          {offlineQueue.map((exp, idx) => {
+            const payerName = exp.payerId === currentUserId ? 'You' : (memberNames[exp.payerId] || 'Someone')
+            const isYou = exp.payerId === currentUserId
+            return (
+              <div
+                key={exp.id}
+                className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 opacity-80"
+              >
+                <Avatar name={payerName} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate flex items-center gap-2">
+                    {exp.description}
+                    <span className="text-[10px] bg-amber-200 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider">
+                      Queued
+                    </span>
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {'Paid by '}
+                    <span className={isYou ? 'font-medium text-foreground' : ''}>{payerName}</span>
+                    {' · '}
+                    {formatDate(exp.date, useNepali)}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-bold text-base tabular-nums">{formatAmount(Number(exp.amount), useNepali)}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    exp.splitWith
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                      : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {exp.splitWith ? 'Split' : 'Personal'}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+
+          {recentExpenses.length === 0 && offlineQueue.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground flex flex-col items-center">
               <div className="text-4xl mb-3">🧾</div>
               <p className="font-medium mb-1">No expenses yet</p>
