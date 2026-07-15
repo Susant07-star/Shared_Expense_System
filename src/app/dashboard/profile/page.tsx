@@ -32,21 +32,27 @@ export default async function ProfilePage() {
 
   const activeRooms = (allMemberships || [])
     .filter((m: any) => m.status === 'active' || !m.status)
-    .map((m: any) => ({
-      id: m.rooms?.id,
-      name: m.rooms?.name || 'Unknown',
-      invite_code: m.rooms?.invite_code,
-      role: m.role,
-      joined_at: m.joined_at,
-    }))
+    .map((m: any) => {
+      const roomObj = Array.isArray(m.rooms) ? m.rooms[0] : m.rooms
+      return {
+        id: roomObj?.id,
+        name: roomObj?.name || 'Unknown',
+        invite_code: roomObj?.invite_code,
+        role: m.role,
+        joined_at: m.joined_at,
+      }
+    })
     .filter((r: any) => r.id)
 
   const pendingRequests = (allMemberships || [])
     .filter((m: any) => m.status === 'pending')
-    .map((m: any) => ({
-      id: m.rooms?.id,
-      name: m.rooms?.name || 'Unknown Room',
-    }))
+    .map((m: any) => {
+      const roomObj = Array.isArray(m.rooms) ? m.rooms[0] : m.rooms
+      return {
+        id: roomObj?.id,
+        name: roomObj?.name || 'Unknown Room',
+      }
+    })
     .filter((r: any) => r.id)
 
   const adminRooms = activeRooms.filter(r => r.role === 'admin')

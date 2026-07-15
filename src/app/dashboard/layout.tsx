@@ -54,7 +54,7 @@ export default async function DashboardLayout({
       <main className="flex-1 flex flex-col overflow-hidden">
         <RealtimeSubscriber />
         <Suspense fallback={<div className="h-16 border-b" />}>
-          <TopBar />
+          <TopBar allRooms={allRooms} />
         </Suspense>
         <div className="flex-1 overflow-y-auto">
           {children}

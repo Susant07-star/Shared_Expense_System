@@ -5,8 +5,16 @@ import { NotificationBell } from './notification-bell'
 import { CurrencyDropdown } from './currency-dropdown'
 import { PushPrompt } from '../push-prompt'
 import { cookies } from 'next/headers'
+import { MobileNav } from './mobile-nav'
 
-export async function TopBar() {
+type Room = {
+  id: string
+  name: string
+  invite_code: string
+  role: string
+}
+
+export async function TopBar({ allRooms }: { allRooms?: Room[] }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
@@ -33,7 +41,11 @@ export async function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b shrink-0 h-16 flex items-center">
-      <div className="w-full max-w-4xl mx-auto px-4 md:px-8 flex items-center justify-end gap-3">
+      <div className="w-full max-w-4xl mx-auto px-4 md:px-8 flex items-center justify-between">
+        {/* Mobile Navigation (Hidden on Desktop) */}
+        <MobileNav allRooms={allRooms || []} />
+
+        <div className="flex items-center gap-3 ml-auto">
 
         {/* Push Notification Toggle */}
         <PushPrompt />
@@ -59,7 +71,7 @@ export async function TopBar() {
           </span>
           <UserCircle className="sm:hidden w-4 h-4 text-slate-500 dark:text-slate-400" />
         </Link>
-
+        </div>
       </div>
     </header>
   )

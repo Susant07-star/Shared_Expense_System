@@ -71,7 +71,7 @@ export function NotificationBell({ initialNotifications }: { initialNotification
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 border rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-96">
+        <div className="absolute right-0 sm:-right-4 mt-2 w-[320px] max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-96">
           <div className="p-3 border-b flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
             <h3 className="font-semibold text-sm">Notifications</h3>
             <div className="flex items-center gap-2">
