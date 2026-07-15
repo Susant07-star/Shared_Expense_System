@@ -22,12 +22,15 @@ export default async function DashboardLayout({
 
   const activeMemberships = (memberships || []).filter((m: any) => m.status === 'active' || !m.status)
 
-  const allRooms = activeMemberships.map((m: any) => ({
-    id: m.rooms?.id,
-    name: m.rooms?.name,
-    invite_code: m.rooms?.invite_code,
-    role: m.role,
-  })).filter((r: any) => r.id)
+  const allRooms = activeMemberships.map((m: any) => {
+    const roomObj = Array.isArray(m.rooms) ? m.rooms[0] : m.rooms
+    return {
+      id: roomObj?.id,
+      name: roomObj?.name,
+      invite_code: roomObj?.invite_code,
+      role: m.role,
+    }
+  }).filter((r: any) => r.id)
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">

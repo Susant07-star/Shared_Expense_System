@@ -158,11 +158,14 @@ export default async function ProfilePage() {
                     {isAdmin ? (
                       // DELETE button for admins
                       <Dialog>
-                        <DialogTrigger render={
-                          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-800/50 rounded-lg transition-colors shrink-0">
-                            <Trash2 className="w-3.5 h-3.5" /> Delete Room
-                          </button>
-                        } />
+                        <DialogTrigger
+                          render={
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-800/50 rounded-lg transition-colors shrink-0">
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Delete Room</span>
+                            </button>
+                          }
+                        />
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Delete Room?</DialogTitle>
@@ -185,11 +188,14 @@ export default async function ProfilePage() {
                     ) : (
                       // LEAVE button for members
                       <Dialog>
-                        <DialogTrigger render={
-                          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:text-slate-400 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors shrink-0">
-                            <DoorOpen className="w-3.5 h-3.5" /> Leave Room
-                          </button>
-                        } />
+                        <DialogTrigger
+                          render={
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:text-slate-400 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors shrink-0">
+                              <DoorOpen className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Leave Room</span>
+                            </button>
+                          }
+                        />
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Leave Room?</DialogTitle>

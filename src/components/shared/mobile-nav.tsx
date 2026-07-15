@@ -15,59 +15,71 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="md:hidden flex items-center">
+    // Only shown on mobile (md: is the sidebar breakpoint)
+    <div className="md:hidden flex items-center shrink-0">
+      {/* Hamburger button */}
       <button
         onClick={() => setOpen(true)}
-        className="p-2 -ml-2 mr-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
+        aria-label="Open menu"
+        className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
       >
         <Menu className="w-6 h-6" />
       </button>
 
-      {/* App Branding on Mobile */}
-      <h2 className="hidden sm:block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+      {/* App name — hidden on very small screens to save space */}
+      <span className="hidden xs:block sm:block ml-1 text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 select-none">
         Roommates
-      </h2>
+      </span>
 
-      {/* Mobile Menu Overlay */}
+      {/* Overlay backdrop */}
       {open && (
-        <div className="fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-            onClick={() => setOpen(false)}
-          />
-          
-          {/* Sidebar Panel */}
-          <div className="relative w-64 max-w-[80vw] bg-white dark:bg-gray-950 h-full flex flex-col shadow-2xl animate-in slide-in-from-left duration-200">
-            <div className="p-4 flex items-center justify-between border-b shrink-0">
-              <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                Roommates
-              </h2>
-              <button
-                onClick={() => setOpen(false)}
-                className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div 
-              className="flex-1 overflow-y-auto"
-              onClick={(e) => {
-                // Close menu if a link is clicked
-                if ((e.target as HTMLElement).closest('a') || (e.target as HTMLElement).closest('button.w-full')) {
-                  // Give it a tiny delay so the ripple effect plays
-                  setTimeout(() => setOpen(false), 150)
-                }
-              }}
-            >
-              <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading navigation...</div>}>
-                <DashboardNav allRooms={allRooms} />
-              </Suspense>
-            </div>
-          </div>
-        </div>
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+        />
       )}
+
+      {/* Drawer — always in DOM so Suspense/useSearchParams works cleanly */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white dark:bg-gray-950 flex flex-col shadow-2xl transition-transform duration-250 ease-in-out ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
+          <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+            Roommates
+          </h2>
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+            className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Nav content — close drawer when any nav link/button is clicked */}
+        <div
+          className="flex-1 overflow-y-auto"
+          onClick={(e) => {
+            const target = e.target as HTMLElement
+            if (target.closest('a') || target.closest('button[data-nav]')) {
+              setTimeout(() => setOpen(false), 120)
+            }
+          }}
+        >
+          <Suspense fallback={
+            <div className="p-4 space-y-2">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="h-10 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
+              ))}
+            </div>
+          }>
+            <DashboardNav allRooms={allRooms} />
+          </Suspense>
+        </div>
+      </div>
     </div>
   )
 }

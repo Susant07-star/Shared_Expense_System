@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { UserCircle } from 'lucide-react'
 import { NotificationBell } from './notification-bell'
 import { CurrencyDropdown } from './currency-dropdown'
 import { PushPrompt } from '../push-prompt'
@@ -56,20 +55,19 @@ export async function TopBar({ allRooms }: { allRooms?: Room[] }) {
         {/* Notification Bell */}
         <NotificationBell initialNotifications={notifications} />
 
-        {/* Profile Link with Name */}
+        {/* Profile Link — initials avatar always visible, name only on sm+ */}
         <Link
           href="/dashboard/profile"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-gray-900 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 group"
+          className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-gray-900 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200"
         >
-          {/* Avatar circle with initials */}
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
-            <span className="text-[10px] font-bold text-white leading-none">{initials}</span>
+          {/* Avatar circle with initials — always visible */}
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
+            <span className="text-[11px] font-bold text-white leading-none">{initials}</span>
           </div>
-          {/* Name — hidden on very small screens */}
+          {/* Name — hidden on small screens */}
           <span className="hidden sm:block text-xs font-medium text-slate-700 dark:text-slate-300 max-w-[120px] truncate">
             {userName}
           </span>
-          <UserCircle className="sm:hidden w-4 h-4 text-slate-500 dark:text-slate-400" />
         </Link>
         </div>
       </div>

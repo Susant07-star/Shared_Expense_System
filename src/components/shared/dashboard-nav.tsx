@@ -54,7 +54,7 @@ export function DashboardNav({ allRooms }: { allRooms: Room[] }) {
           className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
         >
           <span className="font-semibold text-sm truncate">
-            {currentRoom?.name ?? 'Select Room'}
+            {currentRoom?.name || 'Select Room'}
           </span>
           <ChevronDown
             className={`w-4 h-4 shrink-0 transition-transform duration-200 ${roomMenuOpen ? 'rotate-180' : ''}`}
@@ -78,9 +78,9 @@ export function DashboardNav({ allRooms }: { allRooms: Room[] }) {
                 }`}
               >
                 <span className="w-6 h-6 rounded-full bg-indigo-200 dark:bg-indigo-800 flex items-center justify-center text-xs font-bold text-indigo-700 dark:text-indigo-200 shrink-0">
-                  {room.name[0]?.toUpperCase()}
+                  {(room.name || '?').charAt(0).toUpperCase()}
                 </span>
-                <span className="truncate">{room.name}</span>
+                <span className="truncate">{room.name || 'Unknown Room'}</span>
               </Link>
             ))}
 
