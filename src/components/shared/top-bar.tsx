@@ -45,7 +45,7 @@ export async function TopBar({ allRooms }: { allRooms?: Room[] }) {
         {/* Mobile Navigation (Hidden on Desktop) */}
         <MobileNav allRooms={allRooms || []} />
 
-        <div className="flex items-center gap-3 ml-auto">
+        <div className="flex items-center gap-1 sm:gap-3 ml-auto">
 
         {/* Push Notification Toggle */}
         <PushPrompt />

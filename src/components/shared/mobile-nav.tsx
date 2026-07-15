@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { Menu, X } from 'lucide-react'
 import { DashboardNav } from './dashboard-nav'
 
@@ -18,13 +18,13 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
     <div className="md:hidden flex items-center">
       <button
         onClick={() => setOpen(true)}
-        className="p-2 -ml-2 mr-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+        className="p-2 -ml-2 mr-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
       >
         <Menu className="w-6 h-6" />
       </button>
 
       {/* App Branding on Mobile */}
-      <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+      <h2 className="hidden sm:block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
         Roommates
       </h2>
 
@@ -39,13 +39,13 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
           
           {/* Sidebar Panel */}
           <div className="relative w-64 max-w-[80vw] bg-white dark:bg-gray-950 h-full flex flex-col shadow-2xl animate-in slide-in-from-left duration-200">
-            <div className="p-4 flex items-center justify-between border-b">
+            <div className="p-4 flex items-center justify-between border-b shrink-0">
               <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
                 Roommates
               </h2>
               <button
                 onClick={() => setOpen(false)}
-                className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -61,7 +61,9 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
                 }
               }}
             >
-              <DashboardNav allRooms={allRooms} />
+              <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading navigation...</div>}>
+                <DashboardNav allRooms={allRooms} />
+              </Suspense>
             </div>
           </div>
         </div>
