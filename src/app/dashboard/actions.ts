@@ -123,7 +123,10 @@ export async function joinRoom(formData: FormData) {
   }
 
   revalidatePath('/dashboard', 'layout')
-  redirect(`/dashboard?room=${room.id}`)
+  
+  if (status === 'active') {
+    redirect(`/dashboard?room=${room.id}`)
+  }
 }
 
 export async function addExpense(formData: FormData) {
@@ -865,10 +868,10 @@ export async function markAllNotificationsAsRead() {
 export async function resetRoomData(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) return
 
   const roomId = formData.get('roomId') as string
-  if (!roomId) return { error: 'Missing room ID' }
+  if (!roomId) return
 
   // Only admins can reset room data
   const { data: membership } = await supabase
@@ -879,7 +882,7 @@ export async function resetRoomData(formData: FormData) {
     .single()
 
   if (membership?.role !== 'admin') {
-    return { error: 'Only admins can reset room data' }
+    return
   }
 
   // Delete in order: splits → expenses → settlements → activity_logs → notifications
@@ -899,5 +902,4 @@ export async function resetRoomData(formData: FormData) {
   await supabase.from('notifications').delete().eq('room_id', roomId)
 
   revalidatePath('/dashboard', 'layout')
-  return { success: true }
 }

@@ -164,7 +164,7 @@ export default async function SettingsPage({
                     </DialogHeader>
                     <DialogFooter className="mt-4">
                       <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-                      <form action={async (formData) => { await resetRoomData(formData) }}>
+                      <form action={resetRoomData}>
                         <input type="hidden" name="roomId" value={roomId} />
                         <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white">Yes, Reset Data</Button>
                       </form>

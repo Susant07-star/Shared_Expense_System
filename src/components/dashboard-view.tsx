@@ -415,10 +415,16 @@ export function DashboardView({
                   </DialogHeader>
                   <DialogFooter>
                     <DialogClose render={<Button variant="ghost">Cancel</Button>} />
-                    <form action={settleAllBalances}>
+                    <form 
+                      action={(formData) => {
+                        startTransition(async () => {
+                          await settleAllBalances(formData)
+                        })
+                      }}
+                    >
                       <input type="hidden" name="roomId" value={roomId} />
                       <input type="hidden" name="debts" value={JSON.stringify(balances.filter(b => b.from === currentUserId))} />
-                      <Button type="submit">Confirm Payment</Button>
+                      <Button type="submit" disabled={isPending}>Confirm Payment</Button>
                     </form>
                   </DialogFooter>
                 </DialogContent>
