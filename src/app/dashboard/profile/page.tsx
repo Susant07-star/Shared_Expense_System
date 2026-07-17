@@ -282,11 +282,27 @@ export default async function ProfilePage() {
         {/* Account Actions */}
         <div className="bg-card border rounded-2xl p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-bold">Account Actions</h2>
-          <form action={signout}>
-            <Button variant="outline" type="submit" className="gap-2">
-              <LogOut className="w-4 h-4" /> Sign Out
-            </Button>
-          </form>
+          <Dialog>
+            <DialogTrigger render={
+              <Button variant="outline" className="gap-2">
+                <LogOut className="w-4 h-4" /> Sign Out
+              </Button>
+            } />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Sign out?</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to sign out of Roommates?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                <form action={signout}>
+                  <Button type="submit" variant="destructive">Confirm Sign Out</Button>
+                </form>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
       </div>

@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Menu, X, Home, Receipt, Users, Settings, Activity, LogOut, ChevronDown, Crown } from 'lucide-react'
 import { signout } from '@/app/(auth)/actions'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
 type Room = {
   id: string
@@ -153,18 +155,39 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
         </div>
 
         <div className="shrink-0 border-t border-slate-200 p-3 pb-8 dark:border-slate-800">
-          <button
-            type="button"
-            onClick={() => {
-              close()
-              startSignOut(() => signout())
-            }}
-            disabled={isSigningOut}
-            className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-          >
-            <LogOut className="h-5 w-5 shrink-0" />
-            <span>{isSigningOut ? 'Signing out...' : 'Sign Out'}</span>
-          </button>
+          <Dialog>
+            <DialogTrigger render={
+              <button
+                type="button"
+                disabled={isSigningOut}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+              >
+                <LogOut className="h-5 w-5 shrink-0" />
+                <span>{isSigningOut ? 'Signing out...' : 'Sign Out'}</span>
+              </button>
+            } />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Sign out?</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to sign out of Roommates?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    close()
+                    startSignOut(() => signout())
+                  }}
+                  disabled={isSigningOut}
+                >
+                  {isSigningOut ? 'Signing out...' : 'Confirm Sign Out'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </aside>
     </div>

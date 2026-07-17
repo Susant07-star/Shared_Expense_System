@@ -6,6 +6,8 @@ import { Home, Receipt, Users, Settings, Activity, LogOut, ChevronDown, Plus } f
 import { useState, useTransition } from 'react'
 import { createRoom } from '@/app/dashboard/actions'
 import { signout } from '@/app/(auth)/actions'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
 type Room = {
   id: string
@@ -109,16 +111,34 @@ export function DashboardNav({ allRooms }: { allRooms: Room[] }) {
         })}
       </nav>
 
-      {/* Sign Out — always visible at the bottom */}
+      {/* Sign Out - always visible at the bottom */}
       <div className="p-4 pb-8 border-t shrink-0">
-        <button
-          onClick={() => startSignOut(() => signout())}
-          disabled={isSigningOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-150 disabled:opacity-50"
-        >
-          <LogOut className="w-5 h-5 shrink-0" />
-          {isSigningOut ? 'Signing out…' : 'Sign Out'}
-        </button>
+        <Dialog>
+          <DialogTrigger render={
+            <button
+              type="button"
+              disabled={isSigningOut}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-150 disabled:opacity-50"
+            >
+              <LogOut className="w-5 h-5 shrink-0" />
+              {isSigningOut ? 'Signing out...' : 'Sign Out'}
+            </button>
+          } />
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Sign out?</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to sign out of Roommates?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline">Cancel</Button>} />
+              <Button variant="destructive" onClick={() => startSignOut(() => signout())} disabled={isSigningOut}>
+                {isSigningOut ? 'Signing out...' : 'Confirm Sign Out'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   )
