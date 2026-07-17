@@ -646,11 +646,19 @@ export async function approveMember(formData: FormData) {
 
   if (membership?.role !== 'admin') return
 
-  await supabase
+  const { data: approvedMember, error: approveError } = await supabase
     .from('room_members')
     .update({ status: 'active' })
     .eq('room_id', roomId)
     .eq('user_id', targetUserId)
+    .eq('status', 'pending')
+    .select('user_id')
+    .maybeSingle()
+
+  if (approveError || !approvedMember) {
+    revalidatePath('/dashboard', 'layout')
+    return
+  }
 
   // Notify the approved user
   const { data: roomInfo } = await supabase.from('rooms').select('name').eq('id', roomId).single()
@@ -704,6 +712,7 @@ export async function rejectMember(formData: FormData) {
     .delete()
     .eq('room_id', roomId)
     .eq('user_id', targetUserId)
+    .eq('status', 'pending')
 
   revalidatePath('/dashboard', 'layout')
 }
