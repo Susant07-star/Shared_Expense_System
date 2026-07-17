@@ -61,7 +61,7 @@ export default async function DashboardLayout({
         <Suspense fallback={<div className="h-16 border-b" />}>
           <TopBar allRooms={allRooms} />
         </Suspense>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(env(safe-area-inset-bottom)+2rem)] scroll-pb-[calc(env(safe-area-inset-bottom)+2rem)] [-webkit-overflow-scrolling:touch] md:pb-0 md:scroll-pb-0">
           {children}
         </div>
       </main>
