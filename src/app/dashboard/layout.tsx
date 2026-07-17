@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { DashboardNav } from '@/components/shared/dashboard-nav'
 import { TopBar } from '@/components/shared/top-bar'
 import { RealtimeSubscriber } from '@/components/shared/realtime-subscriber'
+import { NativeBackHandler } from '@/components/shared/native-back-handler'
 import { Suspense } from 'react'
 
 export default async function DashboardLayout({
@@ -56,6 +57,7 @@ export default async function DashboardLayout({
       {/* Main content */}
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <RealtimeSubscriber />
+        <NativeBackHandler />
         <Suspense fallback={<div className="h-16 border-b" />}>
           <TopBar allRooms={allRooms} />
         </Suspense>

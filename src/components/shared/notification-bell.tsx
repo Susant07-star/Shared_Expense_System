@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bell, CheckCheck } from 'lucide-react'
 import { markNotificationAsRead, markAllNotificationsAsRead } from '@/app/dashboard/actions'
+import { formatDateTime } from '@/lib/nepali'
 
 export type Notification = {
   id: string
@@ -12,7 +13,7 @@ export type Notification = {
   type: string
 }
 
-export function NotificationBell({ initialNotifications }: { initialNotifications: Notification[] }) {
+export function NotificationBell({ initialNotifications, useNepali }: { initialNotifications: Notification[], useNepali: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const [notifications, setNotifications] = useState(initialNotifications)
@@ -121,7 +122,7 @@ export function NotificationBell({ initialNotifications }: { initialNotification
                             {notif.message}
                           </p>
                           <p className="mt-1 text-[10px] text-muted-foreground">
-                            {new Date(notif.created_at).toLocaleString()}
+                            {formatDateTime(notif.created_at, useNepali)}
                           </p>
                         </div>
                       </div>

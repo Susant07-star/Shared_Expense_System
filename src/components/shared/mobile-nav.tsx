@@ -88,6 +88,7 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
                   <Link
                     key={href}
                     href={`${href}${roomQuery}`}
+                    replace
                     onClick={close}
                     className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                       isActive
@@ -135,6 +136,7 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
                     <Link
                       key={room.id}
                       href={`/dashboard?room=${room.id}`}
+                      replace
                       onClick={close}
                       className={`flex min-h-10 items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
                         room.id === currentRoomId

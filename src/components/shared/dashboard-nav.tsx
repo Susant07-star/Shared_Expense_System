@@ -72,6 +72,7 @@ export function DashboardNav({ allRooms }: { allRooms: Room[] }) {
               <Link
                 key={room.id}
                 href={`/dashboard?room=${room.id}`}
+                replace
                 onClick={() => setRoomMenuOpen(false)}
                 className={`flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-muted transition-colors ${
                   room.id === currentRoomId
@@ -98,6 +99,7 @@ export function DashboardNav({ allRooms }: { allRooms: Room[] }) {
             <Link
               key={href}
               href={`${href}${roomQuery}`}
+              replace
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                 isActive
                   ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'

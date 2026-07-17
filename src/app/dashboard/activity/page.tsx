@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Activity, Receipt, HandCoins } from 'lucide-react'
 import { cookies } from 'next/headers'
-import { formatAmount, formatDate } from '@/lib/nepali'
+import { formatAmount, formatDate, formatTime } from '@/lib/nepali'
 
 function Avatar({ name }: { name: string }) {
   const colors = [
@@ -96,7 +96,7 @@ export default async function ActivityPage({
             activityList.map((log: any, idx: number) => {
               const name = log.user_id === user!.id ? 'You' : (log.users?.name || 'Someone')
               const isYou = log.user_id === user!.id
-              const time = new Date(log.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+              const time = formatTime(log.created_at)
               const date = formatDate(log.created_at, useNepali)
 
               return (
