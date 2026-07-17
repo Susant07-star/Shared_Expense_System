@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Menu, X, Home, Receipt, Users, Settings, Activity, LogOut, ChevronDown, Crown } from 'lucide-react'
 import { signout } from '@/app/(auth)/actions'
-import { useTransition } from 'react'
 
 type Room = {
   id: string
@@ -43,139 +43,147 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
     setRoomMenuOpen(false)
   }
 
-  return (
-    <div className="md:hidden flex items-center shrink-0">
-      {/* Hamburger button */}
+  const drawer = (
+    <div className="fixed inset-0 z-[1000] md:hidden">
       <button
-        onClick={() => setOpen(true)}
-        aria-label="Open menu"
-        className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-      >
-        <Menu className="w-6 h-6" />
-      </button>
+        type="button"
+        aria-label="Close menu"
+        className="absolute inset-0 h-full w-full bg-black/50 backdrop-blur-sm"
+        onClick={close}
+      />
 
-      {/* Backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-          onClick={close}
-        />
-      )}
-
-      {/* Slide-in drawer */}
-      <div
-        className={`fixed top-0 left-0 bottom-0 z-50 w-[280px] bg-white dark:bg-gray-950 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out ${
-          open ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      <aside
+        id="mobile-dashboard-menu"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Dashboard navigation"
+        className="relative z-[1001] flex h-screen w-[min(20rem,86vw)] flex-col bg-white text-slate-950 shadow-2xl dark:bg-gray-950 dark:text-slate-50"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <span className="text-xl font-bold text-indigo-600 dark:text-indigo-300">
             Roommates
           </span>
           <button
+            type="button"
             onClick={close}
             aria-label="Close menu"
-            className="p-1.5 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <nav className="border-b border-slate-200 p-3 dark:border-slate-800">
+            <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              Navigation
+            </p>
+            <div className="space-y-1">
+              {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+                const isActive = pathname === href
 
-          {/* Room switcher */}
+                return (
+                  <Link
+                    key={href}
+                    href={`${href}${roomQuery}`}
+                    onClick={close}
+                    className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-200'
+                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    <span>{label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </nav>
+
           {allRooms.length > 0 && (
-            <div className="shrink-0 p-4 border-b border-slate-100 dark:border-slate-800">
-              <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-widest mb-2 px-1">
+            <section className="border-b border-slate-200 p-4 dark:border-slate-800">
+              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                 Current Room
               </p>
               <button
-                onClick={() => setRoomMenuOpen(v => !v)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                type="button"
+                onClick={() => setRoomMenuOpen(value => !value)}
+                className="flex w-full items-center justify-between gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-left text-indigo-800 transition-colors hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-indigo-200 dark:bg-indigo-800 flex items-center justify-center text-xs font-bold text-indigo-700 dark:text-indigo-200 shrink-0">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-200 text-xs font-bold text-indigo-700 dark:bg-indigo-800 dark:text-indigo-200">
                     {(currentRoom?.name || '?').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="font-semibold text-sm truncate">
+                  </span>
+                  <span className="truncate text-sm font-semibold">
                     {currentRoom?.name || 'Select Room'}
                   </span>
                   {currentRoom?.role === 'admin' && (
-                    <Crown className="w-3 h-3 text-amber-500 shrink-0" />
+                    <Crown className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                   )}
-                </div>
+                </span>
                 <ChevronDown
-                  className={`w-4 h-4 shrink-0 transition-transform duration-200 ${roomMenuOpen ? 'rotate-180' : ''}`}
+                  className={`h-4 w-4 shrink-0 transition-transform ${roomMenuOpen ? 'rotate-180' : ''}`}
                 />
               </button>
 
-              {roomMenuOpen && allRooms.length > 1 && (
-                <div className="mt-2 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-gray-900 shadow-lg">
+              {roomMenuOpen && (
+                <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-gray-900">
                   {allRooms.map(room => (
                     <Link
                       key={room.id}
                       href={`/dashboard?room=${room.id}`}
                       onClick={close}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${
+                      className={`flex min-h-10 items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
                         room.id === currentRoomId
-                          ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 font-semibold'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                          ? 'bg-indigo-50 font-semibold text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300'
+                          : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-bold text-indigo-600 dark:text-indigo-300 shrink-0">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300">
                         {(room.name || '?').charAt(0).toUpperCase()}
-                      </div>
-                      <span className="truncate">{room.name}</span>
+                      </span>
+                      <span className="truncate">{room.name || 'Unknown Room'}</span>
                     </Link>
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           )}
-
-          {/* Nav links */}
-          <nav className="min-h-0 flex-1 overflow-y-auto p-3 space-y-0.5">
-            <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-widest mb-2 px-2 pt-1">
-              Navigation
-            </p>
-            {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
-              const isActive = pathname === href
-              return (
-                <Link
-                  key={href}
-                  href={`${href}${roomQuery}`}
-                  onClick={close}
-                  className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150 ${
-                    isActive
-                      ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
-                  }`}
-                >
-                  <Icon className="w-5 h-5 shrink-0" />
-                  {label}
-                </Link>
-              )
-            })}
-          </nav>
         </div>
 
-        {/* Sign out at bottom */}
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800 pb-8">
+        <div className="shrink-0 border-t border-slate-200 p-3 pb-8 dark:border-slate-800">
           <button
+            type="button"
             onClick={() => {
               close()
               startSignOut(() => signout())
             }}
             disabled={isSigningOut}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-all duration-150 disabled:opacity-50"
+            className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-red-950/30 dark:hover:text-red-400"
           >
-            <LogOut className="w-5 h-5 shrink-0" />
-            {isSigningOut ? 'Signing out…' : 'Sign Out'}
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span>{isSigningOut ? 'Signing out...' : 'Sign Out'}</span>
           </button>
         </div>
-      </div>
+      </aside>
+    </div>
+  )
+
+  return (
+    <div className="flex shrink-0 items-center md:hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Open menu"
+        aria-controls="mobile-dashboard-menu"
+        aria-expanded={open}
+        className="rounded-lg p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+      >
+        <Menu className="h-6 w-6" />
+      </button>
+
+      {open && typeof document !== 'undefined' && createPortal(drawer, document.body)}
     </div>
   )
 }
