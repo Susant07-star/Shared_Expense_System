@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Menu, X, Home, Receipt, Users, Settings, Activity, LogOut, ChevronDown, Crown } from 'lucide-react'
 import { signout } from '@/app/(auth)/actions'
 import { useTransition } from 'react'
@@ -27,10 +27,16 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
   const [isSigningOut, startSignOut] = useTransition()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const roomFromUrl = searchParams.get('room')
 
-  // Use first room as default (no useSearchParams needed here)
-  const currentRoom = allRooms[0]
-  const roomQuery = currentRoom ? `?room=${currentRoom.id}` : ''
+  const currentRoomId =
+    roomFromUrl && allRooms.some(room => room.id === roomFromUrl)
+      ? roomFromUrl
+      : allRooms[0]?.id ?? ''
+
+  const currentRoom = allRooms.find(room => room.id === currentRoomId)
+  const roomQuery = currentRoomId ? `?room=${currentRoomId}` : ''
 
   const close = () => {
     setOpen(false)
@@ -76,12 +82,12 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
           </button>
         </div>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Body */}
+        <div className="flex min-h-0 flex-1 flex-col">
 
           {/* Room switcher */}
           {allRooms.length > 0 && (
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="shrink-0 p-4 border-b border-slate-100 dark:border-slate-800">
               <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-widest mb-2 px-1">
                 Current Room
               </p>
@@ -113,7 +119,7 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
                       href={`/dashboard?room=${room.id}`}
                       onClick={close}
                       className={`flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${
-                        room.id === currentRoom?.id
+                        room.id === currentRoomId
                           ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 font-semibold'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
@@ -130,7 +136,7 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
           )}
 
           {/* Nav links */}
-          <nav className="p-3 space-y-0.5">
+          <nav className="min-h-0 flex-1 overflow-y-auto p-3 space-y-0.5">
             <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-widest mb-2 px-2 pt-1">
               Navigation
             </p>
