@@ -39,12 +39,12 @@ export async function TopBar({ allRooms }: { allRooms?: Room[] }) {
   const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 
   return (
-    <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b shrink-0 h-16 flex items-center">
-      <div className="w-full max-w-4xl mx-auto px-4 md:px-8 flex items-center justify-between">
+    <header className="sticky top-0 z-[800] flex h-16 shrink-0 items-center border-b bg-white/95 shadow-sm backdrop-blur-md dark:bg-gray-950/95">
+      <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 md:px-8">
         {/* Mobile Navigation (Hidden on Desktop) */}
         <MobileNav allRooms={allRooms || []} />
 
-        <div className="flex items-center gap-1 sm:gap-3 ml-auto">
+        <div className="ml-auto flex items-center gap-1 sm:gap-3">
 
         {/* Push Notification Toggle */}
         <PushPrompt />
@@ -58,7 +58,7 @@ export async function TopBar({ allRooms }: { allRooms?: Room[] }) {
         {/* Profile Link — initials avatar always visible, name only on sm+ */}
         <Link
           href="/dashboard/profile"
-          className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-gray-900 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200"
+          className="flex min-h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 shadow-sm transition-all duration-200 hover:bg-slate-50 dark:border-slate-800 dark:bg-gray-900 dark:hover:bg-slate-800 sm:px-3"
         >
           {/* Avatar circle with initials — always visible */}
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">

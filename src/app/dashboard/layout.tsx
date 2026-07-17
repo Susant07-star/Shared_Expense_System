@@ -33,7 +33,7 @@ export default async function DashboardLayout({
   }).filter((r: any) => r.id)
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <div className="flex h-dvh overflow-hidden bg-gray-50 dark:bg-gray-900">
 
       {/* Sidebar — hidden on mobile, visible md+ */}
       <aside className="hidden md:flex w-64 border-r bg-white dark:bg-gray-950 flex-col shrink-0">
@@ -54,12 +54,12 @@ export default async function DashboardLayout({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <RealtimeSubscriber />
         <Suspense fallback={<div className="h-16 border-b" />}>
           <TopBar allRooms={allRooms} />
         </Suspense>
-        <div className="flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
           {children}
         </div>
       </main>
