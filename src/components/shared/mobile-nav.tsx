@@ -48,7 +48,7 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
       <button
         type="button"
         aria-label="Close menu"
-        className="absolute inset-0 h-full w-full bg-black/50 backdrop-blur-sm"
+        className="app-mobile-backdrop absolute inset-0 h-full w-full bg-black/50 backdrop-blur-sm"
         onClick={close}
       />
 
@@ -57,7 +57,7 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
         role="dialog"
         aria-modal="true"
         aria-label="Dashboard navigation"
-        className="relative z-[1001] flex h-screen w-[min(20rem,86vw)] flex-col bg-white text-slate-950 shadow-2xl dark:bg-gray-950 dark:text-slate-50"
+        className="app-mobile-drawer relative z-[1001] flex h-screen w-[min(20rem,86vw)] flex-col bg-white text-slate-950 shadow-2xl dark:bg-gray-950 dark:text-slate-50"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <span className="text-xl font-bold text-indigo-600 dark:text-indigo-300">
@@ -128,7 +128,7 @@ export function MobileNav({ allRooms }: { allRooms: Room[] }) {
               </button>
 
               {roomMenuOpen && (
-                <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-gray-900">
+                <div className="app-popover-in mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-gray-900">
                   {allRooms.map(room => (
                     <Link
                       key={room.id}

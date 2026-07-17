@@ -128,3 +128,83 @@
     @apply font-sans;
   }
 }
+@keyframes app-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes app-scale-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes app-slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes app-slide-down {
+  from { opacity: 0; transform: translateY(-0.35rem) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@layer base {
+  :root {
+    --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --motion-fast: 140ms;
+    --motion-medium: 220ms;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a,
+    button,
+    [role="button"],
+    [data-slot="button"] {
+      transition-duration: var(--motion-fast);
+      transition-property: background-color, border-color, box-shadow, color, opacity, transform;
+      transition-timing-function: var(--motion-ease);
+    }
+
+    a:active,
+    button:active,
+    [role="button"]:active,
+    [data-slot="button"]:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    [data-slot="dialog-overlay"][data-open] {
+      animation: app-fade-in var(--motion-fast) var(--motion-ease);
+    }
+
+    [data-slot="dialog-content"][data-open] {
+      animation: app-scale-in var(--motion-medium) var(--motion-ease);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .app-mobile-backdrop {
+    animation: app-fade-in var(--motion-fast) var(--motion-ease);
+  }
+
+  .app-mobile-drawer {
+    animation: app-slide-in-left var(--motion-medium) var(--motion-ease);
+    will-change: transform;
+  }
+
+  .app-popover-in {
+    animation: app-slide-down var(--motion-medium) var(--motion-ease);
+    transform-origin: top center;
+  }
+}

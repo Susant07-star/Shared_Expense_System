@@ -72,25 +72,43 @@ export async function createRoom(formData: FormData) {
     return
   }
 
-  const roomName = formData.get('roomName') as string
-  const roomId = crypto.randomUUID()
+  const roomName = String(formData.get('roomName') || '').trim()
+  const requestedRoomId = String(formData.get('roomRequestId') || '')
+  const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  const roomId = validUuid.test(requestedRoomId) ? requestedRoomId : crypto.randomUUID()
 
-  // Insert room
+  if (!roomName) return
+
+  // The roomRequestId makes repeated submits from the same rendered form idempotent.
   const { error: roomError } = await supabase
     .from('rooms')
     .insert([{ id: roomId, name: roomName }])
 
   if (roomError) {
+    if (roomError.code === '23505') {
+      const { data: existingMembership } = await supabase
+        .from('room_members')
+        .select('room_id')
+        .eq('room_id', roomId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (existingMembership) {
+        redirect(`/dashboard?room=${roomId}`)
+      }
+      return
+    }
+
     console.error('Room Error:', roomError)
     throw new Error(`Room Insert Error: ${roomError.message}`)
   }
 
-  // Insert member
+  // Insert member. If a duplicate submit races here, treat the existing membership as success.
   const { error: memberError } = await supabase
     .from('room_members')
     .insert([{ room_id: roomId, user_id: user.id, role: 'admin' }])
 
-  if (memberError) {
+  if (memberError && memberError.code !== '23505') {
     console.error('Member Error:', memberError)
     throw new Error(`Member Insert Error: ${memberError.message}`)
   }

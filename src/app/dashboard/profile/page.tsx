@@ -257,6 +257,7 @@ export default async function ProfilePage() {
 
           <div className="grid md:grid-cols-2 gap-6">
             <form action={createRoom} className="space-y-4">
+              <input type="hidden" name="roomRequestId" value={crypto.randomUUID()} />
               <div className="space-y-2">
                 <Label htmlFor="newRoomName">Create a New Room</Label>
                 <Input id="newRoomName" name="roomName" placeholder="e.g. My Apartment" required />
